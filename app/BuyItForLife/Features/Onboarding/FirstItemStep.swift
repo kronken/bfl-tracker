@@ -110,14 +110,15 @@ struct FirstItemStep: View {
         }
         .scrollIndicators(.hidden)
         .scrollDismissesKeyboard(.interactively)
-        .safeAreaInset(edge: .bottom) {
+        // A safe-area bar fades the content out under the button instead of a
+        // solid strip, which floated as a black box above the keyboard.
+        .safeAreaBar(edge: .bottom) {
             Button("Add to wardrobe") { Task { await add() } }
                 .buttonStyle(.primary)
                 .disabled(!canAdd)
                 .padding(.horizontal, 16)
                 .padding(.top, 12)
                 .padding(.bottom, 8)
-                .background(.appBackground)
         }
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {

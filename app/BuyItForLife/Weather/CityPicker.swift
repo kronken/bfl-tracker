@@ -136,7 +136,7 @@ struct CityChoiceView: View {
             .padding(.bottom, 16)
         }
         .scrollIndicators(.hidden)
-        .safeAreaInset(edge: .bottom) { footer }
+        .safeAreaBar(edge: .bottom) { footer }
         .background(.appBackground)
         .onAppear { selection = settings.weatherLocation }
         .onChange(of: selection) { problem = nil }
@@ -172,7 +172,6 @@ struct CityChoiceView: View {
         .padding(.horizontal, 16)
         .padding(.top, 12)
         .padding(.bottom, 8)
-        .background(.appBackground)
     }
 
     private var ctaTitle: String {
