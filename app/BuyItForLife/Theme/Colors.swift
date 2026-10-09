@@ -38,7 +38,7 @@ extension ShapeStyle where Self == Color {
 
 extension Color {
     /// A colour from a 0xRRGGBB literal.
-    init(hex: UInt32, opacity: Double = 1) {
+    nonisolated init(hex: UInt32, opacity: Double = 1) {
         self.init(
             .sRGB,
             red: Double((hex >> 16) & 0xFF) / 255,
@@ -49,7 +49,7 @@ extension Color {
     }
 
     /// A colour from a "#RRGGBB" string, e.g. an item's stored tint.
-    init?(hexString: String) {
+    nonisolated init?(hexString: String) {
         let digits = hexString.hasPrefix("#") ? String(hexString.dropFirst()) : hexString
         guard digits.count == 6, let value = UInt32(digits, radix: 16) else { return nil }
         self.init(hex: value)
