@@ -23,7 +23,7 @@ struct RootView: View {
                 NavigationStack { TodayView() }
             }
             Tab("Insights", systemImage: "chart.line.uptrend.xyaxis", value: .insights) {
-                NavigationStack { InsightsView() }
+                InsightsView()
             }
             Tab("Wardrobe", systemImage: "hanger", value: .wardrobe) {
                 WardrobeView()

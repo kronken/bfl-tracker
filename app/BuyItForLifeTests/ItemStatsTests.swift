@@ -142,15 +142,39 @@ struct WardrobeStatsTests {
     }
 
     @Test func costPerDaySpreadsNetCostSinceFirstPurchase() {
-        let now = date(2020, 3, 24)
-        #expect(wardrobe.daysTracked(now: now, calendar: calendar) == 10)
-        #expect(wardrobe.costPerDayCents(now: now, calendar: calendar) == 5_340)
+        // Only the boots exist on 24 Mar 2020: €349 over 10 days.
+        let early = date(2020, 3, 24)
+        #expect(wardrobe.daysTracked(asOf: early, calendar: calendar) == 10)
+        #expect(wardrobe.costPerDayCents(asOf: early, calendar: calendar) == 3_490)
+    }
+
+    @Test func costPerDayCountsSalesOnlyOnceMade() {
+        // Before the sale (1 Mar 2026) the second item still costs its full price.
+        let beforeSale = wardrobe.costPerDayCents(asOf: date(2026, 2, 28), calendar: calendar)!
+        let days = Double(wardrobe.daysTracked(asOf: date(2026, 2, 28), calendar: calendar))
+        #expect(beforeSale == 86_900 / days)
+        let afterSale = wardrobe.costPerDayCents(asOf: date(2026, 3, 1), calendar: calendar)!
+        #expect(afterSale == 53_400 / (days + 1))
+    }
+
+    @Test func historyHasOnePointPerYearEndingNow() {
+        let points = wardrobe.costPerDayHistory(now: date(2026, 10, 9), calendar: calendar)
+        #expect(points.map(\.year) == [2020, 2021, 2022, 2023, 2024, 2025, 2026])
+        #expect(points.last?.isNow == true)
+        #expect(points.dropLast().allSatisfy { !$0.isNow })
+    }
+
+    @Test func spendPerYearIncludesEmptyYears() {
+        let points = wardrobe.spendPerYear(now: date(2026, 10, 9), calendar: calendar)
+        #expect(points.map(\.year) == [2020, 2021, 2022, 2023, 2024, 2025, 2026])
+        #expect(points.map(\.cents) == [34_900, 52_000, 0, 0, 0, 0, 0])
     }
 
     @Test func emptyWardrobeHasNoCosts() {
         let w = WardrobeStats(items: [])
-        #expect(w.daysTracked(now: date(2026, 10, 9), calendar: calendar) == 0)
-        #expect(w.costPerDayCents(now: date(2026, 10, 9), calendar: calendar) == nil)
+        #expect(w.daysTracked(asOf: date(2026, 10, 9), calendar: calendar) == 0)
+        #expect(w.costPerDayCents(asOf: date(2026, 10, 9), calendar: calendar) == nil)
+        #expect(w.costPerDayHistory(now: date(2026, 10, 9), calendar: calendar).isEmpty)
         #expect(w.averageCostPerWearCents == nil)
     }
 }

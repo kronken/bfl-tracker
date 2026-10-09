@@ -94,18 +94,69 @@ nonisolated struct WardrobeStats: Equatable, Sendable {
         wearCount > 0 ? Double(netCostCents) / Double(wearCount) : nil
     }
 
-    /// Days since the earliest purchase, at least 1 once there is an item.
-    func daysTracked(now: Date = .now, calendar: Calendar = .current) -> Int {
-        guard let first = items.map(\.purchaseDate).min() else { return 0 }
-        let days = calendar.dateComponents(
-            [.day], from: calendar.startOfDay(for: first), to: calendar.startOfDay(for: now)
-        ).day ?? 0
-        return max(1, days)
+    /// Days from the earliest purchase to `date`, at least 1 once an item
+    /// had been bought by then; 0 before that.
+    func daysTracked(asOf date: Date = .now, calendar: Calendar = .current) -> Int {
+        let day = calendar.startOfDay(for: date)
+        guard let first = items.map({ calendar.startOfDay(for: $0.purchaseDate) }).filter({ $0 <= day }).min() else {
+            return 0
+        }
+        return max(1, calendar.dateComponents([.day], from: first, to: day).day ?? 0)
     }
 
-    /// Net cost of everything bought, spread over the days since the first purchase.
-    func costPerDayCents(now: Date = .now, calendar: Calendar = .current) -> Double? {
-        let days = daysTracked(now: now, calendar: calendar)
-        return days > 0 ? Double(netCostCents) / Double(days) : nil
+    /// Net cost of what had been bought by `date` (minus sales made by then),
+    /// spread over the days since the first purchase. nil before any purchase.
+    func costPerDayCents(asOf date: Date = .now, calendar: Calendar = .current) -> Double? {
+        let day = calendar.startOfDay(for: date)
+        let days = daysTracked(asOf: date, calendar: calendar)
+        guard days > 0 else { return nil }
+        let net = items.reduce(0) { total, item in
+            guard calendar.startOfDay(for: item.purchaseDate) <= day else { return total }
+            let soldByThen = item.soldDate.map { calendar.startOfDay(for: $0) <= day } ?? false
+            return total + max(0, item.purchasePriceCents - (soldByThen ? item.soldPriceCents ?? 0 : 0))
+        }
+        return Double(net) / Double(days)
     }
+
+    /// Cost per day at the end of each year since the first purchase, ending
+    /// with `now`. At most `limit` points, most recent kept.
+    func costPerDayHistory(now: Date = .now, limit: Int = 7, calendar: Calendar = .current) -> [YearPoint] {
+        guard let first = items.map(\.purchaseDate).min() else { return [] }
+        let firstYear = calendar.component(.year, from: first)
+        let thisYear = calendar.component(.year, from: now)
+        var points: [YearPoint] = []
+        for year in firstYear..<thisYear {
+            guard let lastDay = calendar.date(from: DateComponents(year: year, month: 12, day: 31)),
+                  let value = costPerDayCents(asOf: lastDay, calendar: calendar)
+            else { continue }
+            points.append(YearPoint(year: year, isNow: false, cents: value))
+        }
+        if let value = costPerDayCents(asOf: now, calendar: calendar) {
+            points.append(YearPoint(year: thisYear, isNow: true, cents: value))
+        }
+        return Array(points.suffix(limit))
+    }
+
+    /// Money spent on purchases in each calendar year, from the first purchase
+    /// year to this year. At most `limit` years, most recent kept.
+    func spendPerYear(now: Date = .now, limit: Int = 7, calendar: Calendar = .current) -> [YearPoint] {
+        guard let first = items.map(\.purchaseDate).min() else { return [] }
+        let firstYear = calendar.component(.year, from: first)
+        let thisYear = max(firstYear, calendar.component(.year, from: now))
+        var totals: [Int: Int] = [:]
+        for item in items {
+            totals[calendar.component(.year, from: item.purchaseDate), default: 0] += item.purchasePriceCents
+        }
+        let points = (firstYear...thisYear).map {
+            YearPoint(year: $0, isNow: $0 == thisYear, cents: Double(totals[$0] ?? 0))
+        }
+        return Array(points.suffix(limit))
+    }
+}
+
+nonisolated struct YearPoint: Equatable, Sendable {
+    var year: Int
+    /// The last point is "now" rather than the end of the year.
+    var isNow: Bool
+    var cents: Double
 }

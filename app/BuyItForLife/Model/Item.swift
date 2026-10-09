@@ -118,4 +118,13 @@ extension Item {
         guard let soldDate else { return true }
         return calendar.startOfDay(for: soldDate) >= start
     }
+
+    /// Days since the item was last logged as worn, or since it was added if
+    /// it never has been. nil for sold items.
+    func daysUnworn(now: Date = .now, calendar: Calendar = .current) -> Int? {
+        guard !isSold else { return nil }
+        let lastWorn = stats.lastWornDayKey.flatMap { DayKey.date(from: $0, calendar: calendar) }
+        let since = max(lastWorn ?? .distantPast, calendar.startOfDay(for: createdAt))
+        return max(0, calendar.dateComponents([.day], from: since, to: calendar.startOfDay(for: now)).day ?? 0)
+    }
 }

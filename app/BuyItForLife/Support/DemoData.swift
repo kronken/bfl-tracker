@@ -41,6 +41,8 @@ enum DemoData {
         }
         owned[0].notes = "Resoled with Vibram 430, Nov 2024. Conditioned every autumn."
         insertWearLog(boots: owned[0], jeans: owned[1], into: context)
+        // Everything was "added" long ago, so Insights can show an unworn item.
+        for item in owned { item.createdAt = Calendar.current.date(byAdding: .day, value: -140, to: .now)! }
 
         let sold: [(String, Date, Int, Int, Date, Int, String)] = [
             ("Viberg Service Boot", date(2021, 4), 520, 88, date(2026, 3, 10), 335, "#261C14"),

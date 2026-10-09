@@ -141,3 +141,13 @@ struct PhotoProcessorTests {
         #expect(processed.original.count < 250_000)
     }
 }
+
+struct CompactMoneyTests {
+    @Test func compactsThousands() {
+        let us = Locale(identifier: "en_US")
+        #expect(SpendPerYearCard.compact(62_900, locale: us) == "$629")
+        #expect(SpendPerYearCard.compact(130_400, locale: us) == "$1.3K")
+        // Never "€k" glued after the symbol.
+        #expect(!SpendPerYearCard.compact(130_400, locale: Locale(identifier: "fi_FI")).contains("€k"))
+    }
+}
