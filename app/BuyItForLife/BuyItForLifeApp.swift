@@ -4,12 +4,14 @@ import SwiftUI
 @main
 struct BuyItForLifeApp: App {
     @State private var settings = AppSettings()
+    @State private var weather = WeatherStore()
     private let container = Self.makeContainer()
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environment(settings)
+                .environment(weather)
                 .preferredColorScheme(.dark)
         }
         .modelContainer(container)

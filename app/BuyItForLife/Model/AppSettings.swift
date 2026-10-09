@@ -38,6 +38,12 @@ final class AppSettings {
         let target = Int(store.longLong(forKey: Key.paidOffTargetCents))
         paidOffTargetCents = target > 0 ? target : 100
         onboardingCompleted = store.bool(forKey: Key.onboardingCompleted)
+        #if DEBUG
+        // `-debugWeatherLocation fi.helsinki` for screenshots; never saved.
+        if let override = UserDefaults.standard.string(forKey: "debugWeatherLocation") {
+            weatherLocation = override
+        }
+        #endif
 
         observer = NotificationCenter.default.addObserver(
             forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,

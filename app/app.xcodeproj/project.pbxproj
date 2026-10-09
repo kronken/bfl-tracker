@@ -330,6 +330,7 @@
 		000000000000000111000000 /* Debug configuration for PBXNativeTarget "BuyItForLife" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = BuyItForLife/BuyItForLife.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -339,8 +340,9 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = BuyItForLife/Info.plist;
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				INFOPLIST_KEY_CFBundleDisplayName = "Buy It For Life";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Take photos of your clothes.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Only used to fetch the weather forecast where you are, so Today can suggest the right clothes.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -374,6 +376,7 @@
 		000000000000000112000000 /* Release configuration for PBXNativeTarget "BuyItForLife" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = BuyItForLife/BuyItForLife.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -383,8 +386,9 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = BuyItForLife/Info.plist;
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				INFOPLIST_KEY_CFBundleDisplayName = "Buy It For Life";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Take photos of your clothes.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Only used to fetch the weather forecast where you are, so Today can suggest the right clothes.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;

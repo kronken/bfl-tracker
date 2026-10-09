@@ -96,9 +96,26 @@ extension Item {
     }
 
     /// Whether the item suits the given weather: the temperature is within its
-    /// range and the condition is one it's marked for.
-    func suits(temperatureC: Double, condition: WeatherConditions) -> Bool {
+    /// range and it's marked for at least one of the conditions.
+    func suits(temperatureC: Double, conditions weather: WeatherConditions) -> Bool {
         let inRange = temperatureC >= Double(minTempC) && temperatureC <= Double(maxTempC)
-        return inRange && conditions.contains(condition)
+        return inRange && !conditions.isDisjoint(with: weather)
+    }
+
+    /// Why the item isn't suggested for this weather, e.g. "Best above 18°C".
+    func unsuitedReason(temperatureC: Double, conditions weather: WeatherConditions) -> String {
+        if temperatureC < Double(minTempC) { return "Best above \(Temperature.format(celsius: minTempC))" }
+        if temperatureC > Double(maxTempC) { return "Best below \(Temperature.format(celsius: maxTempC))" }
+        let names = WeatherConditions.options.filter { weather.contains($0.condition) }.map { $0.title.lowercased() }
+        return names.isEmpty ? "Not for this weather" : "Not for \(names.joined(separator: " or "))"
+    }
+
+    /// Whether the item was in the wardrobe on `day`: bought on or before it,
+    /// and not sold before it.
+    func wasOwned(on day: Date, calendar: Calendar = .current) -> Bool {
+        let start = calendar.startOfDay(for: day)
+        guard calendar.startOfDay(for: purchaseDate) <= start else { return false }
+        guard let soldDate else { return true }
+        return calendar.startOfDay(for: soldDate) >= start
     }
 }

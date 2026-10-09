@@ -71,10 +71,10 @@ struct ItemAndDayLogTests {
 
     @Test func suitsChecksRangeAndCondition() {
         let shell = makeItem(min: -15, max: 18, conditions: [.rain, .wind])
-        #expect(shell.suits(temperatureC: 5, condition: .rain))
-        #expect(shell.suits(temperatureC: 18, condition: .rain))   // range is inclusive
-        #expect(!shell.suits(temperatureC: 5, condition: .sun))    // wrong condition
-        #expect(!shell.suits(temperatureC: 20, condition: .rain))  // too warm
+        #expect(shell.suits(temperatureC: 5, conditions: .rain))
+        #expect(shell.suits(temperatureC: 18, conditions: .rain))   // range is inclusive
+        #expect(!shell.suits(temperatureC: 5, conditions: .sun))    // wrong condition
+        #expect(!shell.suits(temperatureC: 20, conditions: .rain))  // too warm
     }
 
     @Test func toggleAddsAndRemovesItem() throws {
