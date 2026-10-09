@@ -11,40 +11,50 @@ struct WardrobeView: View {
     @State private var search = ""
     @State private var showNewItem = false
     @State private var editing: Item?
+    @State private var path: [Item] = []
 
     private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
     var body: some View {
-        TabScreen {
-            ScreenHeader(subtitle: items.isEmpty ? nil : summary, title: "Wardrobe") {
-                GlassIconButton(systemImage: "plus", accessibilityLabel: "Add item") { showNewItem = true }
-            }
+        NavigationStack(path: $path) {
+            TabScreen {
+                ScreenHeader(subtitle: items.isEmpty ? nil : summary, title: "Wardrobe") {
+                    GlassIconButton(systemImage: "plus", accessibilityLabel: "Add item") { showNewItem = true }
+                }
 
-            if items.isEmpty {
-                emptyWardrobe
-            } else {
-                SearchField(prompt: "Brand, model or category", text: $search)
-                SegmentedControl(
-                    options: [(Shelf.owned, "Owned · \(owned.count)"), (Shelf.sold, "Sold · \(sold.count)")],
-                    selection: $shelf
-                )
-                categoryChips
-                grid
+                if items.isEmpty {
+                    emptyWardrobe
+                } else {
+                    SearchField(prompt: "Brand, model or category", text: $search)
+                    SegmentedControl(
+                        options: [(Shelf.owned, "Owned · \(owned.count)"), (Shelf.sold, "Sold · \(sold.count)")],
+                        selection: $shelf
+                    )
+                    categoryChips
+                    grid
+                }
+            }
+            .navigationTitle("Wardrobe")
+            .navigationDestination(for: Item.self) { item in
+                ItemDetailView(item: item)
             }
         }
         .onChange(of: shelf) { category = nil }
         #if DEBUG
-        // `-openItemForm new` or `-openItemForm edit` opens the form on launch, for screenshots.
+        // `-openItemForm new|edit` or `-openItemDetail YES` on launch, for screenshots.
         .onAppear {
             switch UserDefaults.standard.string(forKey: "openItemForm") {
             case "new": showNewItem = true
             case "edit": editing = items.first
             default: break
             }
+            if UserDefaults.standard.bool(forKey: "openItemDetail"), let first = items.max(by: { $0.stats.wearCount < $1.stats.wearCount }) {
+                path = [first]
+            }
         }
         #endif
         .sheet(isPresented: $showNewItem) {
-            ItemFormView(mode: .new)
+            ItemFormView(mode: .new) { item in path = [item] }
         }
         .sheet(item: $editing) { item in
             ItemFormView(mode: .edit(item))
@@ -114,7 +124,7 @@ struct WardrobeView: View {
         } else {
             LazyVGrid(columns: columns, spacing: 12) {
                 ForEach(visible) { item in
-                    Button { editing = item } label: { WardrobeCard(item: item) }
+                    NavigationLink(value: item) { WardrobeCard(item: item) }
                         .buttonStyle(.plain)
                 }
             }
@@ -204,7 +214,8 @@ struct WardrobeCard: View {
 }
 
 #Preview {
-    NavigationStack { WardrobeView() }
+    WardrobeView()
+        .environment(AppSettings())
         .modelContainer(for: [Item.self, DayLog.self], inMemory: true)
         .preferredColorScheme(.dark)
 }

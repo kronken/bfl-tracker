@@ -77,6 +77,28 @@ struct ItemStatsTests {
         #expect(s.lastWornDayKey == "2026-10-08")
     }
 
+    @Test func daysSinceLastWorn() {
+        let now = date(2026, 10, 9, hour: 8)
+        #expect(stats().daysSinceLastWorn(now: now, calendar: calendar) == nil)
+        #expect(stats(days: ["2026-10-09"]).daysSinceLastWorn(now: now, calendar: calendar) == 0)
+        #expect(stats(days: ["2026-10-01", "2026-10-08"]).daysSinceLastWorn(now: now, calendar: calendar) == 1)
+    }
+
+    @Test func wearsPerMonthCoversLastTwelveMonths() {
+        let s = stats(prior: 100, days: ["2025-10-31", "2025-11-02", "2026-01-05", "2026-01-06", "2026-10-09"])
+        let months = s.wearsPerMonth(now: date(2026, 10, 9), calendar: calendar)
+        #expect(months.count == 12)
+        #expect(DayKey.make(for: months.first!.monthStart, calendar: calendar) == "2025-11-01")
+        #expect(DayKey.make(for: months.last!.monthStart, calendar: calendar) == "2026-10-01")
+        // October 2025 is outside the window; prior wears have no month.
+        #expect(months.map(\.count) == [1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 1])
+    }
+
+    @Test func wearsUntilPaidOff() {
+        #expect(stats(prior: 300).wearsUntilPaidOff(targetCents: 100) == 50)
+        #expect(stats(prior: 412).wearsUntilPaidOff(targetCents: 100) == 0)
+    }
+
     @Test func paidOffRequiresCostPerWearUnderTarget() {
         #expect(stats(prior: 349).isPaidOff(targetCents: 100) == false) // exactly €1.00
         #expect(stats(prior: 350).isPaidOff(targetCents: 100) == true)

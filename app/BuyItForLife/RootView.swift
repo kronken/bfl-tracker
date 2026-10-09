@@ -26,7 +26,7 @@ struct RootView: View {
                 NavigationStack { InsightsView() }
             }
             Tab("Wardrobe", systemImage: "hanger", value: .wardrobe) {
-                NavigationStack { WardrobeView() }
+                WardrobeView()
             }
             Tab("Settings", systemImage: "gearshape", value: .settings) {
                 NavigationStack { SettingsView() }
