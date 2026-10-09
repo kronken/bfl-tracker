@@ -151,3 +151,13 @@ struct CompactMoneyTests {
         #expect(!SpendPerYearCard.compact(130_400, locale: Locale(identifier: "fi_FI")).contains("€k"))
     }
 }
+
+struct TemperatureBandTests {
+    @Test func bandsSpanFromColdestToWarmest() {
+        #expect(TemperatureBand.range(of: []) == nil)
+        #expect(TemperatureBand.range(of: [.cold]) == 0...10)
+        #expect(TemperatureBand.range(of: [.freezing, .cold, .mild]) == -30...18)
+        // A gap still gives one continuous range.
+        #expect(TemperatureBand.range(of: [.freezing, .warm]) == -30...35)
+    }
+}
