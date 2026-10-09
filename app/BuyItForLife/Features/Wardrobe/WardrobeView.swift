@@ -156,6 +156,8 @@ struct WardrobeView: View {
 struct WardrobeCard: View {
     let item: Item
 
+    @Environment(AppSettings.self) private var settings
+
     var body: some View {
         let stats = item.stats
         VStack(alignment: .leading, spacing: 10) {
@@ -177,6 +179,13 @@ struct WardrobeCard: View {
                     Text("/ wear")
                         .font(.footnote)
                         .foregroundStyle(.textSecondary)
+                    if !item.isSold, stats.isPaidOff(targetCents: settings.paidOffTargetCents) {
+                        Spacer(minLength: 4)
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.footnote)
+                            .foregroundStyle(.positive)
+                            .accessibilityLabel("Paid off")
+                    }
                 }
                 .padding(.top, 4)
                 Text(meta(stats))
