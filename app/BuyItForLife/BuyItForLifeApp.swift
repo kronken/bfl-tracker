@@ -7,8 +7,9 @@ struct BuyItForLifeApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView()
                 .environment(settings)
+                .preferredColorScheme(.dark)
         }
         .modelContainer(Self.makeContainer())
     }
