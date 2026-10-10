@@ -66,7 +66,11 @@ Data collection: **No, we do not collect data from this app.**
 
 ## Screenshots
 
-`store/screenshots/` — 1320 × 2868 (6.9"), upload in this order:
+Two sets, same order — use the one matching the slot App Store Connect shows:
+- `store/screenshots/` — 1320 × 2868, for the **6.9" display** slot
+- `store/screenshots/6.5-inch/` — 1242 × 2688, for the **6.5" display** slot
+
+Order:
 1. Wardrobe
 2. Today
 3. Item detail
