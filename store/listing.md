@@ -66,7 +66,8 @@ Data collection: **No, we do not collect data from this app.**
 
 ## Screenshots
 
-Two sets, same order — use the one matching the slot App Store Connect shows:
+Three sets, same order — use the one matching the slot App Store Connect shows:
+- `store/screenshots/6.3-inch/` — 1206 × 2622, for the **6.1"/6.3" display** slot (the one this account's App Store Connect asks for; the iPhone originals)
 - `store/screenshots/` — 1320 × 2868, for the **6.9" display** slot
 - `store/screenshots/6.5-inch/` — 1242 × 2688, for the **6.5" display** slot
 
