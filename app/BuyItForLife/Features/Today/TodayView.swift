@@ -64,6 +64,7 @@ struct TodayView: View {
         .sheet(isPresented: $showCityChoice) {
             NavigationStack {
                 CityChoiceView(showsFooter: false) { showCityChoice = false }
+                    .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
                             Button("Cancel") { showCityChoice = false }.tint(.textPrimary)

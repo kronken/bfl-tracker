@@ -170,5 +170,9 @@ struct TabScreen<Content: View>: View {
         .scrollIndicators(.hidden)
         .background(.appBackground)
         .toolbarVisibility(.hidden, for: .navigationBar)
+        // The bar is hidden, but in large-title mode iOS still reserves room
+        // for a large title when you pull past the top, leaving a gap that
+        // only snaps back after a moment. Inline mode reserves nothing.
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
