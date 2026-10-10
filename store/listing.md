@@ -15,8 +15,8 @@ Apple's limits.
 | Age rating | 4+ (answer "None" to every questionnaire item) |
 | Price | Free |
 | Copyright | 2026 Joakim Kronqvist |
-| Privacy policy URL | https://\<your-github-user\>.github.io/\<repo\>/privacy.html |
-| Support URL | https://\<your-github-user\>.github.io/\<repo\>/ |
+| Privacy policy URL | https://kronken.github.io/bfl-tracker/privacy.html |
+| Support URL | https://kronken.github.io/bfl-tracker/ |
 
 ## Promotional text (max 170, can be changed without a new release)
 
