@@ -7,6 +7,9 @@ final class DayLog {
     /// "yyyy-MM-dd", see `DayKey`.
     var dayKey: String = ""
     var items: [Item]? = []
+    /// True once the user has changed this day's outfit. Until then daily
+    /// drivers are shown pre-selected; afterwards exactly `items` counts.
+    var userEdited: Bool = false
 
     // Weather snapshot
     var temperatureC: Double?
@@ -47,6 +50,7 @@ extension DayLog {
         current.append(contentsOf: (other.items ?? []).filter { !currentIDs.contains($0.id) })
         items = current
 
+        userEdited = userEdited || other.userEdited
         if temperatureC == nil {
             temperatureC = other.temperatureC
             feelsLikeC = other.feelsLikeC
@@ -55,6 +59,10 @@ extension DayLog {
             placeName = other.placeName
         }
     }
+
+    /// Whether the user has saved an outfit for this day (older logs from
+    /// before `userEdited` existed count as saved if they have items).
+    var isSaved: Bool { userEdited || !(items ?? []).isEmpty }
 
     func isWorn(_ item: Item) -> Bool {
         (items ?? []).contains { $0.id == item.id }

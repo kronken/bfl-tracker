@@ -15,8 +15,17 @@ final class Item {
     // Purchase
     var purchaseDate: Date = Date.now
     var purchasePriceCents: Int = 0
+    /// Pre-owned, vintage or swapped.
+    var boughtSecondHand: Bool = false
     /// Estimated wears before the item was tracked in the app ("Worn so far").
     var priorWearCount: Int = 0
+
+    // How it's used
+    /// Listed first on Today among similar items.
+    var isFavorite: Bool = false
+    /// Worn every day regardless of weather (watch, belt, wallet): pre-selected
+    /// on Today, never sorted by weather, never suggested for selling.
+    var isDailyDriver: Bool = false
 
     // Weather it's for
     var minTempC: Int = -30
@@ -126,5 +135,26 @@ extension Item {
         let lastWorn = stats.lastWornDayKey.flatMap { DayKey.date(from: $0, calendar: calendar) }
         let since = max(lastWorn ?? .distantPast, calendar.startOfDay(for: createdAt))
         return max(0, calendar.dateComponents([.day], from: since, to: calendar.startOfDay(for: now)).day ?? 0)
+    }
+
+    /// Since when the item hasn't been worn: its last logged wear, or the day
+    /// it was added to the app if it has never been logged. (Not the purchase
+    /// date: "worn so far" estimates have no dates, so an old item added today
+    /// shouldn't count as unworn for years.)
+    func unwornSince(calendar: Calendar = .current) -> Date {
+        if let key = stats.lastWornDayKey, let day = DayKey.date(from: key, calendar: calendar) { return day }
+        return calendar.startOfDay(for: max(createdAt, purchaseDate))
+    }
+
+    /// Whole months since `unwornSince`.
+    func monthsUnworn(now: Date = .now, calendar: Calendar = .current) -> Int {
+        let months = calendar.dateComponents([.month], from: unwornSince(calendar: calendar),
+                                             to: calendar.startOfDay(for: now)).month ?? 0
+        return max(0, months)
+    }
+
+    /// Owned, not a daily driver, and unworn for at least `months` months.
+    func isSellSuggestion(months: Int, now: Date = .now, calendar: Calendar = .current) -> Bool {
+        !isSold && !isDailyDriver && monthsUnworn(now: now, calendar: calendar) >= months
     }
 }

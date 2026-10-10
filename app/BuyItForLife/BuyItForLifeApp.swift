@@ -3,6 +3,7 @@ import SwiftUI
 
 @main
 struct BuyItForLifeApp: App {
+    @UIApplicationDelegateAdaptor private var appDelegate: AppDelegate
     @State private var settings = AppSettings()
     @State private var weather = WeatherStore()
     private let container = Self.makeContainer()

@@ -13,7 +13,14 @@ final class AppSettings {
         static let weatherLocation = "weatherLocation"
         static let paidOffTargetCents = "paidOffTargetCents"
         static let onboardingCompleted = "onboardingCompleted"
+        static let sellSuggestionMonths = "sellSuggestionMonths"
+        // Kept on this device only: notifications and their permission are per device.
+        static let reminderEnabled = "reminderEnabled"
+        static let reminderMinutes = "reminderMinutes"
     }
+
+    static let defaultSellSuggestionMonths = 12
+    static let defaultReminderMinutes = 20 * 60
 
     private let store: NSUbiquitousKeyValueStore
     @ObservationIgnored private var observer: NSObjectProtocol?
@@ -31,13 +38,35 @@ final class AppSettings {
         didSet { store.set(onboardingCompleted, forKey: Key.onboardingCompleted) }
     }
 
-    init(store: NSUbiquitousKeyValueStore = .default) {
+    /// Unworn items are suggested for selling after this many months.
+    var sellSuggestionMonths: Int {
+        didSet { store.set(Int64(sellSuggestionMonths), forKey: Key.sellSuggestionMonths) }
+    }
+
+    /// Daily "nothing logged yet" reminder. Stored on this device only.
+    var reminderEnabled: Bool {
+        didSet { local.set(reminderEnabled, forKey: Key.reminderEnabled) }
+    }
+
+    /// Reminder time as minutes after midnight, e.g. 1200 = 20:00.
+    var reminderMinutes: Int {
+        didSet { local.set(reminderMinutes, forKey: Key.reminderMinutes) }
+    }
+
+    @ObservationIgnored private let local: UserDefaults
+
+    init(store: NSUbiquitousKeyValueStore = .default, local: UserDefaults = .standard) {
         self.store = store
+        self.local = local
         store.synchronize()
         weatherLocation = store.string(forKey: Key.weatherLocation)
         let target = Int(store.longLong(forKey: Key.paidOffTargetCents))
         paidOffTargetCents = target > 0 ? target : 100
         onboardingCompleted = store.bool(forKey: Key.onboardingCompleted)
+        let months = Int(store.longLong(forKey: Key.sellSuggestionMonths))
+        sellSuggestionMonths = months > 0 ? months : Self.defaultSellSuggestionMonths
+        reminderEnabled = local.bool(forKey: Key.reminderEnabled)
+        reminderMinutes = local.object(forKey: Key.reminderMinutes) as? Int ?? Self.defaultReminderMinutes
         #if DEBUG
         // `-debugWeatherLocation fi.helsinki` for screenshots; never saved.
         if let override = UserDefaults.standard.string(forKey: "debugWeatherLocation") {
@@ -60,5 +89,7 @@ final class AppSettings {
         let target = Int(store.longLong(forKey: Key.paidOffTargetCents))
         paidOffTargetCents = target > 0 ? target : 100
         onboardingCompleted = store.bool(forKey: Key.onboardingCompleted)
+        let months = Int(store.longLong(forKey: Key.sellSuggestionMonths))
+        sellSuggestionMonths = months > 0 ? months : Self.defaultSellSuggestionMonths
     }
 }

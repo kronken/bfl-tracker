@@ -8,9 +8,11 @@ struct RootView: View {
     }
 
     @Environment(AppSettings.self) private var settings
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @Query private var items: [Item]
 
-    @State private var selection: TabID = Self.initialTab
+    @State private var router = AppRouter.shared
     @State private var showOnboarding = false
 
     /// Debug builds can open on another tab with `-initialTab wardrobe`.
@@ -23,7 +25,7 @@ struct RootView: View {
     }
 
     var body: some View {
-        TabView(selection: $selection) {
+        TabView(selection: $router.tab) {
             Tab("Today", systemImage: "tshirt", value: .today) {
                 NavigationStack { TodayView() }
             }
@@ -38,17 +40,30 @@ struct RootView: View {
             }
         }
         .tint(.accentGold)
-        .onAppear { showOnboarding = needsOnboarding }
+        .onAppear {
+            router.tab = Self.initialTab
+            showOnboarding = needsOnboarding
+        }
+        .onChange(of: scenePhase) {
+            if scenePhase == .active { rescheduleReminder() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
+            rescheduleReminder()
+        }
         .onChange(of: settings.onboardingCompleted) {
             // Completed on another device and synced here.
             if settings.onboardingCompleted { showOnboarding = false }
         }
         .fullScreenCover(isPresented: $showOnboarding) {
             OnboardingView {
-                selection = .today
+                router.tab = .today
                 showOnboarding = false
             }
         }
+    }
+
+    private func rescheduleReminder() {
+        Task { await Reminders.reschedule(settings: settings, context: modelContext) }
     }
 
     /// First launch: onboarding not completed and nothing in the wardrobe, so
