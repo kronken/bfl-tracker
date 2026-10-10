@@ -66,9 +66,12 @@ Data collection: **No, we do not collect data from this app.**
 
 ## Screenshots
 
-`store/screenshots/` — 1320 × 2868 (6.9"), in this order:
-1. Today
-2. Wardrobe
+`store/screenshots/` — 1320 × 2868 (6.9"), upload in this order:
+1. Wardrobe
+2. Today
 3. Item detail
 4. Insights
 5. Welcome
+
+Taken on an iPhone with real items and scaled up from 1206 × 2622; the
+originals are in `store/screenshots/source/`.
