@@ -57,7 +57,8 @@ struct FirstItemStep: View {
                             step("minus", enabled: draft.priorWearCount > 0) {
                                 draft.priorWearCount = max(0, draft.priorWearCount - 10)
                             }
-                            TextField("Wears", value: $draft.priorWearCount, format: .number)
+                            TextField("Wears", text: $draft.priorWearCount.emptyWhenZero,
+                                      prompt: Text("0").foregroundStyle(.textTertiary))
                                 .font(.number(.body))
                                 .keyboardType(.numberPad)
                                 .multilineTextAlignment(.center)

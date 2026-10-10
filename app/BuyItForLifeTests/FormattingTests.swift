@@ -1,5 +1,6 @@
 import Foundation
 import UIKit
+import SwiftUI
 import Testing
 @testable import BuyItForLife
 
@@ -160,5 +161,21 @@ struct TemperatureBandTests {
         #expect(TemperatureBand.range(of: [.freezing, .cold, .mild]) == -30...18)
         // A gap still gives one continuous range.
         #expect(TemperatureBand.range(of: [.freezing, .warm]) == -30...35)
+    }
+}
+
+@MainActor
+struct EmptyWhenZeroTests {
+    @Test func zeroShowsEmptyAndTypingReplacesIt() {
+        var count = 0
+        let text = Binding(get: { count }, set: { count = $0 }).emptyWhenZero
+        #expect(text.wrappedValue == "")
+        text.wrappedValue = "300"
+        #expect(count == 300)
+        #expect(text.wrappedValue == "300")
+        text.wrappedValue = ""
+        #expect(count == 0)
+        text.wrappedValue = "1 2a3"
+        #expect(count == 123)
     }
 }

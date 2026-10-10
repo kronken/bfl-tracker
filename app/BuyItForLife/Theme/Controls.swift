@@ -177,3 +177,16 @@ struct RowDivider: View {
         Rectangle().fill(.stroke).frame(height: 1)
     }
 }
+
+// MARK: - Number input
+
+extension Binding where Value == Int {
+    /// Text for a number field where 0 shows as empty, so a "0" placeholder
+    /// can be typed over without deleting it first. Non-digits are ignored.
+    var emptyWhenZero: Binding<String> {
+        Binding<String>(
+            get: { wrappedValue == 0 ? "" : String(wrappedValue) },
+            set: { wrappedValue = Int(String($0.filter(\.isNumber).prefix(6))) ?? 0 }
+        )
+    }
+}
