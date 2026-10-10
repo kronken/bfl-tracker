@@ -2,7 +2,8 @@
 import Foundation
 import SwiftData
 
-/// Debug-only sample wardrobe from the designs, for screenshots and trying
+/// Debug-only sample wardrobe based on the designs (generic names, no brands,
+/// so it can be used in App Store screenshots), for trying
 /// things out. Enable with the launch argument `-demoData YES`; it lives in an
 /// in-memory store and never touches real data or iCloud.
 enum DemoData {
@@ -22,14 +23,14 @@ enum DemoData {
 
     static func insertSamples(into context: ModelContext) {
         let samples: [(String, ItemCategory, Date, Int, Int, Int, Int, WeatherConditions, String)] = [
-            ("Red Wing Iron Ranger 8111", .footwear, date(2020, 3, 14), 349, 243, -25, 15, .all, "#2A1F16"),
-            ("Levi’s 501 Shrink-to-Fit", .bottoms, date(2020, 5), 110, 298, -30, 25, .all, "#151B2B"),
-            ("Filson Mackinaw Cruiser", .outerwear, date(2021, 1), 395, 141, -20, 10, [.sun, .cloudy, .snow, .wind], "#2B1B1B"),
-            ("Barbour Bedale", .outerwear, date(2021, 9), 389, 210, -5, 15, .all, "#1F2119"),
-            ("Arc’teryx Beta AR", .outerwear, date(2023, 2), 600, 96, -15, 20, [.rain, .snow, .wind, .cloudy], "#1C2216"),
-            ("Inis Meáin Aran crewneck", .knitwear, date(2023, 10), 420, 58, -20, 10, .all, "#25231D"),
-            ("Birkenstock Arizona", .footwear, date(2022, 6), 120, 64, 20, 35, [.sun, .cloudy], "#2A2219"),
-            ("Sunspel linen shirt", .tops, date(2024, 5), 165, 9, 20, 35, [.sun, .cloudy], "#22221E"),
+            ("Leather work boots", .footwear, date(2020, 3, 14), 349, 243, -25, 15, .all, "#2A1F16"),
+            ("Raw denim jeans", .bottoms, date(2020, 5), 110, 298, -30, 25, .all, "#151B2B"),
+            ("Wool mackinaw jacket", .outerwear, date(2021, 1), 395, 141, -20, 10, [.sun, .cloudy, .snow, .wind], "#2B1B1B"),
+            ("Waxed cotton jacket", .outerwear, date(2021, 9), 389, 210, -5, 15, .all, "#1F2119"),
+            ("Rain shell", .outerwear, date(2023, 2), 600, 96, -15, 20, [.rain, .snow, .wind, .cloudy], "#1C2216"),
+            ("Aran wool sweater", .knitwear, date(2023, 10), 420, 58, -20, 10, .all, "#25231D"),
+            ("Leather sandals", .footwear, date(2022, 6), 120, 64, 20, 35, [.sun, .cloudy], "#2A2219"),
+            ("Linen shirt", .tops, date(2024, 5), 165, 9, 20, 35, [.sun, .cloudy], "#22221E"),
         ]
         var owned: [Item] = []
         for (name, category, bought, price, wears, low, high, conditions, tint) in samples {
@@ -41,12 +42,16 @@ enum DemoData {
         }
         owned[0].notes = "Resoled with Vibram 430, Nov 2024. Conditioned every autumn."
         insertWearLog(boots: owned[0], jeans: owned[1], into: context)
+        // Today's outfit so far: boots, jeans and the sweater.
+        let today = DayLog(dayKey: DayKey.make(for: .now))
+        context.insert(today)
+        today.items = [owned[0], owned[1], owned[5]]
         // Everything was "added" long ago, so Insights can show an unworn item.
         for item in owned { item.createdAt = Calendar.current.date(byAdding: .day, value: -140, to: .now)! }
 
         let sold: [(String, Date, Int, Int, Date, Int, String)] = [
-            ("Viberg Service Boot", date(2021, 4), 520, 88, date(2026, 3, 10), 335, "#261C14"),
-            ("Dr. Martens 1460", date(2020, 2), 170, 230, date(2025, 6, 2), 45, "#1C1714"),
+            ("Service boots", date(2021, 4), 520, 88, date(2026, 3, 10), 335, "#261C14"),
+            ("Black leather boots", date(2020, 2), 170, 230, date(2025, 6, 2), 45, "#1C1714"),
         ]
         for (name, bought, price, wears, soldOn, soldFor, tint) in sold {
             let item = Item(name: name, category: .footwear, purchaseDate: bought, purchasePriceCents: price * 100,

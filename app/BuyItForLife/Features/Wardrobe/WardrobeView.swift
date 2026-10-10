@@ -41,15 +41,20 @@ struct WardrobeView: View {
         }
         .onChange(of: shelf) { category = nil }
         #if DEBUG
-        // `-openItemForm new|edit` or `-openItemDetail YES` on launch, for screenshots.
+        // `-openItemForm new|edit` or `-openItemDetail` on launch, for screenshots.
         .onAppear {
             switch UserDefaults.standard.string(forKey: "openItemForm") {
             case "new": showNewItem = true
             case "edit": editing = items.first
             default: break
             }
-            if UserDefaults.standard.bool(forKey: "openItemDetail"), let first = items.max(by: { $0.stats.wearCount < $1.stats.wearCount }) {
-                path = [first]
+            // `-openItemDetail YES` opens the most worn item; any other value
+            // opens the first item whose name starts with it.
+            if let wanted = UserDefaults.standard.string(forKey: "openItemDetail") {
+                let match = wanted == "YES"
+                    ? items.max(by: { $0.stats.wearCount < $1.stats.wearCount })
+                    : items.first(where: { $0.name.hasPrefix(wanted) })
+                if let match { path = [match] }
             }
         }
         #endif

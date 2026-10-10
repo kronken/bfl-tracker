@@ -147,8 +147,9 @@ struct CompactMoneyTests {
         let us = Locale(identifier: "en_US")
         #expect(SpendPerYearCard.compact(62_900, locale: us) == "$629")
         #expect(SpendPerYearCard.compact(130_400, locale: us) == "$1.3K")
-        // Never "€k" glued after the symbol.
-        #expect(!SpendPerYearCard.compact(130_400, locale: Locale(identifier: "fi_FI")).contains("€k"))
+        // The symbol stays on the same side as in full amounts.
+        let finnish = SpendPerYearCard.compact(130_400, locale: Locale(identifier: "fi_FI"))
+        #expect(finnish.hasSuffix("€") && finnish.hasPrefix("1,3"))
     }
 }
 

@@ -329,16 +329,13 @@ struct SpendPerYearCard: View {
         return points.map { running += $0.cents; return running }
     }
 
-    /// "€629", "€1.3K" (or the locale's own short form, e.g. "1,3 t. €").
+    /// "€629" / "629 €", and "$1.3K" / "1,3K €": the number is shortened but
+    /// the currency symbol stays where the locale puts it.
     static func compact(_ cents: Double, locale: Locale = .current) -> String {
         let euros = cents / 100
         guard euros >= 1000 else { return Money.format(cents: Int(cents.rounded()), locale: locale) }
-        return euros.formatted(
-            .currency(code: Money.currencyCode(locale: locale))
-                .notation(.compactName)
-                .precision(.fractionLength(0...1))
-                .locale(locale)
-        )
+        let number = euros.formatted(.number.notation(.compactName).precision(.fractionLength(0...1)).locale(locale))
+        return Money.format(cents: 0, locale: locale).replacingOccurrences(of: "0", with: number)
     }
 }
 
