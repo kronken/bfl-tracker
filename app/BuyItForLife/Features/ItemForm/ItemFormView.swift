@@ -105,9 +105,18 @@ struct ItemFormView: View {
                         .labelsHidden()
                 }
                 RowDivider()
+                ToggleRow(label: "Bought second-hand", detail: "Pre-owned, vintage or swapped",
+                          isOn: $draft.boughtSecondHand)
+                RowDivider()
                 FormRow(label: "Worn so far", detail: "A rough guess is fine") {
                     wearCounter
                 }
+                RowDivider()
+                ToggleRow(label: "Favorite", detail: "Listed first on Today among similar items",
+                          isOn: $draft.isFavorite)
+                RowDivider()
+                ToggleRow(label: "Daily driver", detail: "Pre-selected every day, any weather",
+                          isOn: $draft.isDailyDriver)
             }
             .card(padding: nil)
         }

@@ -2,12 +2,19 @@ import SwiftData
 import SwiftUI
 
 struct WardrobeView: View {
-    private enum Shelf: Hashable { case owned, sold }
+    private enum Shelf: Hashable { case owned, toSell, sold }
 
+    /// The chip row: everything, favorites, or one category.
+    private enum Filter: Hashable {
+        case all, favorites
+        case category(ItemCategory)
+    }
+
+    @Environment(AppSettings.self) private var settings
     @Query(sort: \Item.purchaseDate, order: .reverse) private var items: [Item]
 
     @State private var shelf: Shelf = .owned
-    @State private var category: ItemCategory?
+    @State private var filter: Filter = .all
     @State private var search = ""
     @State private var showNewItem = false
     @State private var editing: Item?
@@ -27,11 +34,19 @@ struct WardrobeView: View {
                 } else {
                     SearchField(prompt: "Brand, model or category", text: $search)
                     SegmentedControl(
-                        options: [(Shelf.owned, "Owned · \(owned.count)"), (Shelf.sold, "Sold · \(sold.count)")],
+                        options: [
+                            (Shelf.owned, "Owned · \(owned.count)"),
+                            (Shelf.toSell, "To sell · \(toSell.count)"),
+                            (Shelf.sold, "Sold · \(sold.count)"),
+                        ],
                         selection: $shelf
                     )
-                    categoryChips
-                    grid
+                    if shelf == .toSell {
+                        sellList
+                    } else {
+                        categoryChips
+                        grid
+                    }
                 }
             }
             .navigationTitle("Wardrobe")
@@ -39,13 +54,19 @@ struct WardrobeView: View {
                 ItemDetailView(item: item)
             }
         }
-        .onChange(of: shelf) { category = nil }
+        .onChange(of: shelf) { filter = .all }
         #if DEBUG
         // `-openItemForm new|edit` or `-openItemDetail` on launch, for screenshots.
         .onAppear {
             switch UserDefaults.standard.string(forKey: "openItemForm") {
             case "new": showNewItem = true
             case "edit": editing = items.first
+            default: break
+            }
+            // `-wardrobeShelf toSell|sold` opens another segment.
+            switch UserDefaults.standard.string(forKey: "wardrobeShelf") {
+            case "toSell": shelf = .toSell
+            case "sold": shelf = .sold
             default: break
             }
             // `-openItemDetail YES` opens the most worn item; any other value
@@ -70,11 +91,23 @@ struct WardrobeView: View {
 
     private var owned: [Item] { items.filter { !$0.isSold } }
     private var sold: [Item] { items.filter(\.isSold) }
-    private var onShelf: [Item] { shelf == .owned ? owned : sold }
+    private var onShelf: [Item] { shelf == .sold ? sold : owned }
+
+    /// Owned items unworn for the limit set in Settings, longest unworn first.
+    private var toSell: [Item] {
+        owned.filter { $0.isSellSuggestion(months: settings.sellSuggestionMonths) }
+            .sorted { $0.monthsUnworn() > $1.monthsUnworn() }
+    }
 
     private var visible: [Item] {
-        onShelf.filter { item in
-            (category == nil || item.category == category) && matchesSearch(item)
+        onShelf.filter { matches($0, filter) && matchesSearch($0) }
+    }
+
+    private func matches(_ item: Item, _ filter: Filter) -> Bool {
+        switch filter {
+        case .all: true
+        case .favorites: item.isFavorite
+        case .category(let category): item.category == category
         }
     }
 
@@ -90,6 +123,10 @@ struct WardrobeView: View {
         switch shelf {
         case .owned:
             "\(Money.format(cents: owned.reduce(0) { $0 + $1.purchasePriceCents })) in what you own"
+        case .toSell:
+            settings.sellSuggestionMonths == 12
+                ? "Unworn for a year or more"
+                : "Unworn for \(settings.sellSuggestionMonths) months or more"
         case .sold:
             "\(Money.format(cents: sold.reduce(0) { $0 + ($1.soldPriceCents ?? 0) })) back from sales"
         }
@@ -97,7 +134,8 @@ struct WardrobeView: View {
 
     // MARK: Pieces
 
-    /// "All" plus only the categories that have items on this shelf.
+    /// "All", "Favorites" (owned only), then the categories that have items on
+    /// this shelf.
     private var categoryChips: some View {
         let present = ItemCategory.allCases.compactMap { category -> (ItemCategory, Int)? in
             let count = onShelf.count { $0.category == category }
@@ -105,10 +143,14 @@ struct WardrobeView: View {
         }
         return ScrollView(.horizontal) {
             HStack(spacing: 8) {
-                Chip(title: "All \(onShelf.count)", isOn: category == nil, height: 36) { category = nil }
+                Chip(title: "All \(onShelf.count)", isOn: filter == .all, height: 36) { filter = .all }
+                if shelf == .owned {
+                    Chip(title: "Favorites \(owned.count(where: \.isFavorite))", isOn: filter == .favorites,
+                         height: 36) { filter = .favorites }
+                }
                 ForEach(present, id: \.0) { category, count in
-                    Chip(title: "\(category.title) \(count)", isOn: self.category == category, height: 36) {
-                        self.category = category
+                    Chip(title: "\(category.title) \(count)", isOn: filter == .category(category), height: 36) {
+                        filter = .category(category)
                     }
                 }
             }
@@ -131,6 +173,10 @@ struct WardrobeView: View {
                 ForEach(visible) { item in
                     NavigationLink(value: item) { WardrobeCard(item: item) }
                         .buttonStyle(.plain)
+                        // Outside the link, so tapping the star doesn't open the item.
+                        .overlay(alignment: .topTrailing) {
+                            if !item.isSold { FavoriteStarButton(item: item).padding(8) }
+                        }
                 }
             }
             .padding(.top, 4)
@@ -139,7 +185,42 @@ struct WardrobeView: View {
 
     private var emptyMessage: String {
         if !search.trimmingCharacters(in: .whitespaces).isEmpty { return "No items match “\(search)”." }
-        return shelf == .sold ? "Items you sell show up here." : "Nothing owned in this category."
+        if shelf == .sold { return "Items you sell show up here." }
+        return filter == .favorites
+            ? "No favorites yet. Tap the star on an item to add it."
+            : "Nothing owned in this category."
+    }
+
+    // MARK: To sell
+
+    private var sellList: some View {
+        let list = toSell.filter(matchesSearch)
+        let limit = settings.sellSuggestionMonths
+        return VStack(alignment: .leading, spacing: 12) {
+            Text("Not worn in \(limit == 12 ? "12 months" : "\(limit) months") or more. Change the limit in Settings.")
+                .font(.rowDetail)
+                .foregroundStyle(.textSecondary)
+                .padding(.horizontal, 4)
+            if list.isEmpty {
+                Text(toSell.isEmpty ? "Nothing to sell. Everything has been worn recently." : "No items match “\(search)”.")
+                    .font(.rowDetail)
+                    .foregroundStyle(.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 20)
+                    .card(padding: nil)
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(Array(list.enumerated()), id: \.element.id) { index, item in
+                        if index > 0 { RowDivider() }
+                        NavigationLink(value: item) { SellSuggestionRow(item: item) }
+                            .buttonStyle(.plain)
+                    }
+                }
+                .card(padding: nil)
+            }
+        }
+        .padding(.top, 4)
     }
 
     private var emptyWardrobe: some View {
@@ -169,7 +250,11 @@ struct WardrobeCard: View {
             ItemImageView(content: item.thumbnailContent, cornerRadius: 18, iconSize: 32)
                 .frame(height: 140)
                 .overlay(alignment: .topLeading) {
-                    if item.isSold { soldBadge.padding(8) }
+                    if item.isSold {
+                        PhotoTag(text: "SOLD").padding(8)
+                    } else if item.boughtSecondHand {
+                        PhotoTag(text: "SECOND-HAND").padding(8)
+                    }
                 }
 
             VStack(alignment: .leading, spacing: 2) {
@@ -207,8 +292,23 @@ struct WardrobeCard: View {
         .accessibilityElement(children: .combine)
     }
 
-    private var soldBadge: some View {
-        Text("SOLD")
+    private func meta(_ stats: ItemStats) -> String {
+        if let soldDate = item.soldDate {
+            let price = Money.format(cents: item.soldPriceCents ?? 0)
+            return "Sold \(price) · \(soldDate.formatted(.dateTime.month(.abbreviated).year()))"
+        }
+        let wears = stats.wearCount == 1 ? "1 wear" : "\(stats.wearCount.formatted()) wears"
+        if item.isDailyDriver { return "Daily driver · \(wears)" }
+        return "\(wears) · \(Money.format(cents: item.purchasePriceCents))"
+    }
+}
+
+/// A small dark capsule over a photo's corner: "SOLD", "SECOND-HAND".
+struct PhotoTag: View {
+    var text: String
+
+    var body: some View {
+        Text(text)
             .font(.caption.weight(.semibold))
             .foregroundStyle(.textPrimary)
             .padding(.horizontal, 8)
@@ -216,14 +316,74 @@ struct WardrobeCard: View {
             .background(.black.opacity(0.55), in: .capsule)
             .overlay { Capsule().strokeBorder(.stroke, lineWidth: 1) }
     }
+}
+
+/// The star in a Wardrobe card's corner: toggles the favorite without opening
+/// the item. 44pt to tap, 32pt to see.
+struct FavoriteStarButton: View {
+    let item: Item
+
+    @Environment(\.modelContext) private var modelContext
+
+    var body: some View {
+        Button {
+            withAnimation(.snappy) { item.isFavorite.toggle() }
+            try? modelContext.save()
+        } label: {
+            Image(systemName: item.isFavorite ? "star.fill" : "star")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(item.isFavorite ? .textPrimary : .textSecondary)
+                .frame(width: 32, height: 32)
+                .background(.black.opacity(item.isFavorite ? 0.55 : 0.35), in: .circle)
+                .overlay { Circle().strokeBorder(.stroke, lineWidth: 1) }
+                .frame(width: 44, height: 44)
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .sensoryFeedback(.selection, trigger: item.isFavorite)
+        .accessibilityLabel(item.isFavorite ? "Remove from favorites" : "Add to favorites")
+    }
+}
+
+/// One row under To sell.
+struct SellSuggestionRow: View {
+    let item: Item
+
+    var body: some View {
+        let stats = item.stats
+        let months = item.monthsUnworn()
+        HStack(spacing: 12) {
+            ItemImageView(content: item.thumbnailContent, cornerRadius: Radius.tile, iconSize: 24)
+                .frame(width: 56, height: 56)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.name)
+                    .font(.rowTitle)
+                    .foregroundStyle(.textPrimary)
+                    .lineLimit(1)
+                Text(stats.lastWornDayKey == nil
+                     ? "Not worn in \(months) months"
+                     : "Last worn \(months) months ago")
+                    .font(.rowDetail)
+                    .foregroundStyle(.warning)
+                Text(meta(stats))
+                    .font(.footnote)
+                    .foregroundStyle(.textSecondary)
+                    .monospacedDigit()
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .contentShape(.rect)
+        .accessibilityElement(children: .combine)
+    }
 
     private func meta(_ stats: ItemStats) -> String {
-        if let soldDate = item.soldDate {
-            let price = Money.format(cents: item.soldPriceCents ?? 0)
-            return "Sold \(price) · \(soldDate.formatted(.dateTime.month(.abbreviated).year()))"
-        }
-        let wears = stats.wearCount == 1 ? "1 wear" : "\(stats.wearCount) wears"
-        return "\(wears) · \(Money.format(cents: item.purchasePriceCents))"
+        var parts = [stats.wearCount == 1 ? "1 wear" : "\(stats.wearCount) wears"]
+        if let cpw = stats.costPerWearCents { parts.append("\(Money.format(fractionalCents: cpw)) / wear") }
+        parts.append("paid \(Money.format(cents: item.purchasePriceCents))")
+        return parts.joined(separator: " · ")
     }
 }
 

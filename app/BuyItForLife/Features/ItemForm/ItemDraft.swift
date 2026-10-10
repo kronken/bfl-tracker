@@ -50,6 +50,9 @@ struct ItemDraft: Equatable {
     var priceText = ""
     var purchaseDate = Date.now
     var priorWearCount = 0
+    var boughtSecondHand = false
+    var isFavorite = false
+    var isDailyDriver = false
     var category: ItemCategory?
     var minTempC = -30
     var maxTempC = 35
@@ -72,6 +75,9 @@ struct ItemDraft: Equatable {
         priceText = Money.inputText(cents: item.purchasePriceCents)
         purchaseDate = item.purchaseDate
         priorWearCount = item.priorWearCount
+        boughtSecondHand = item.boughtSecondHand
+        isFavorite = item.isFavorite
+        isDailyDriver = item.isDailyDriver
         category = item.category
         minTempC = item.minTempC
         maxTempC = item.maxTempC
@@ -114,6 +120,9 @@ struct ItemDraft: Equatable {
         item.purchasePriceCents = priceCents ?? 0
         item.purchaseDate = purchaseDate
         item.priorWearCount = max(0, priorWearCount)
+        item.boughtSecondHand = boughtSecondHand
+        item.isFavorite = isFavorite
+        item.isDailyDriver = isDailyDriver
         item.category = category ?? .other
         item.minTempC = minTempC
         item.maxTempC = maxTempC

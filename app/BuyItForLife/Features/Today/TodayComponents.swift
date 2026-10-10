@@ -192,10 +192,18 @@ struct OutfitRow: View {
                     .frame(width: 44, height: 44)
                     .opacity(dimmed ? 0.7 : 1)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(item.name)
-                        .font(.rowTitle)
-                        .foregroundStyle(dimmed ? .textSecondary : .textPrimary)
-                        .lineLimit(1)
+                    HStack(spacing: 6) {
+                        Text(item.name)
+                            .font(.rowTitle)
+                            .foregroundStyle(dimmed ? .textSecondary : .textPrimary)
+                            .lineLimit(1)
+                        if item.isFavorite {
+                            Image(systemName: "star.fill")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(dimmed ? .textSecondary : .textPrimary)
+                                .accessibilityLabel("Favorite")
+                        }
+                    }
                     Text(detail)
                         .font(.rowDetail)
                         .foregroundStyle(.textSecondary)
@@ -224,5 +232,41 @@ struct OutfitRow: View {
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(isWorn ? [.isButton, .isSelected] : .isButton)
         .accessibilityHint(isWorn ? "Marked as worn. Tap to unmark." : "Tap to mark as worn.")
+    }
+}
+
+/// A daily driver on Today: round thumbnail, name, checkmark when selected.
+struct DailyDriverChip: View {
+    let item: Item
+    var isOn: Bool
+    var toggle: () -> Void
+
+    var body: some View {
+        Button(action: toggle) {
+            HStack(spacing: 8) {
+                ItemImageView(content: item.thumbnailContent, cornerRadius: 15, iconSize: 14)
+                    .frame(width: 30, height: 30)
+                    .opacity(isOn ? 1 : 0.5)
+                Text(item.name)
+                    .font(.rowDetail.weight(.medium))
+                    .foregroundStyle(isOn ? .textPrimary : .textSecondary)
+                    .lineLimit(1)
+                if isOn {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.textPrimary)
+                }
+            }
+            .padding(.leading, 5)
+            .padding(.trailing, 12)
+            .frame(minHeight: 40)
+            .background(isOn ? AnyShapeStyle(.fillSelected) : AnyShapeStyle(.clear), in: .capsule)
+            .overlay { Capsule().strokeBorder(.stroke, lineWidth: 1) }
+            .contentShape(.capsule)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(item.name)
+        .accessibilityAddTraits(isOn ? [.isButton, .isSelected] : .isButton)
+        .accessibilityHint(isOn ? "Worn today. Tap to unmark." : "Tap to mark as worn.")
     }
 }

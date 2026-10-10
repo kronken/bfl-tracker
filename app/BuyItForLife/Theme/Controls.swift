@@ -171,6 +171,30 @@ struct FormRow<Control: View>: View {
     }
 }
 
+/// A row with a label, a short explanation and an iOS switch, 64pt tall.
+struct ToggleRow: View {
+    var label: String
+    var detail: String
+    @Binding var isOn: Bool
+
+    var body: some View {
+        Toggle(isOn: $isOn) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label)
+                    .font(.body)
+                    .foregroundStyle(.textPrimary)
+                Text(detail)
+                    .font(.footnote)
+                    .foregroundStyle(.textSecondary)
+            }
+        }
+        .tint(.positive)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .frame(minHeight: 64)
+    }
+}
+
 /// A hairline between rows in a card.
 struct RowDivider: View {
     var body: some View {

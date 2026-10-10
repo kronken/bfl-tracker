@@ -4,7 +4,10 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(AppSettings.self) private var settings
     @Environment(WeatherStore.self) private var weather
+    @Environment(\.modelContext) private var modelContext
     @Query private var items: [Item]
+
+    @State private var reminderProblem: String?
 
     @State private var cityListOpen = false
     @State private var isLocating = false
@@ -12,13 +15,17 @@ struct SettingsView: View {
 
     static let targetStep = 25
     static let presets = [50, 100, 200, 500]
+    static let sellMonthOptions = [3, 6, 12, 18, 24]
+    static let reminderStep = 30
 
     var body: some View {
         TabScreen {
             ScreenHeader(title: "Settings")
             VStack(alignment: .leading, spacing: 24) {
                 weatherSection
+                reminderSection
                 paidOffSection
+                sellSection
                 Text("Buy It For Life · version \(Self.version)")
                     .font(.footnote)
                     .foregroundStyle(.textSecondary)
@@ -167,6 +174,126 @@ struct SettingsView: View {
         await weather.refreshToday(locationSetting: id, force: true)
     }
 
+    // MARK: Reminder
+
+    private var reminderSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel("Reminder")
+            VStack(spacing: 0) {
+                Toggle(isOn: Binding(get: { settings.reminderEnabled }, set: { setReminder($0) })) {
+                    HStack(spacing: 12) {
+                        iconTile("bell")
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Daily reminder")
+                                .font(.body)
+                                .foregroundStyle(.textPrimary)
+                            Text("Only if nothing is logged yet")
+                                .font(.footnote)
+                                .foregroundStyle(.textSecondary)
+                        }
+                    }
+                }
+                .tint(.positive)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .frame(minHeight: 64)
+
+                if settings.reminderEnabled {
+                    RowDivider()
+                    HStack {
+                        Text("Time")
+                            .font(.body)
+                            .foregroundStyle(.textPrimary)
+                        Spacer()
+                        stepButton("minus", label: "30 minutes earlier", enabled: true) { shiftReminder(by: -Self.reminderStep) }
+                        Text(ReminderPlanner.timeLabel(minutes: settings.reminderMinutes))
+                            .font(.number(.body))
+                            .foregroundStyle(.textPrimary)
+                            .contentTransition(.numericText())
+                            .frame(minWidth: 76)
+                            .padding(.vertical, 6)
+                            .background(.surfaceRaised, in: .rect(cornerRadius: Radius.thumb))
+                        stepButton("plus", label: "30 minutes later", enabled: true) { shiftReminder(by: Self.reminderStep) }
+                    }
+                    .padding(.leading, 60)
+                    .padding(.trailing, 8)
+                    .frame(minHeight: 56)
+                    reminderPreview
+                        .padding(.horizontal, 16)
+                        .padding(.top, 4)
+                        .padding(.bottom, 16)
+                }
+            }
+            .card(padding: nil)
+            Text(reminderProblem ?? (settings.reminderEnabled
+                ? "Skipped on days you have already logged. Asks for notification permission the first time."
+                : "No reminders. Today keeps your daily drivers ready when you open the app."))
+                .font(.footnote)
+                .foregroundStyle(reminderProblem == nil ? .textSecondary : .warning)
+                .padding(.horizontal, 4)
+        }
+    }
+
+    /// What the notification will look like.
+    private var reminderPreview: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("PREVIEW")
+                .font(.label)
+                .tracking(0.3)
+                .foregroundStyle(.textSecondary)
+            HStack(alignment: .top, spacing: 10) {
+                Image("AppIconSmall")
+                    .resizable()
+                    .frame(width: 38, height: 38)
+                    .clipShape(.rect(cornerRadius: 9))
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack {
+                        Text("Buy It For Life")
+                            .font(.rowDetail.weight(.semibold))
+                        Spacer()
+                        Text(ReminderPlanner.timeLabel(minutes: settings.reminderMinutes))
+                            .font(.footnote)
+                            .monospacedDigit()
+                            .foregroundStyle(.textSecondary)
+                    }
+                    Text("Nothing logged today. What did you wear?")
+                        .font(.rowDetail)
+                }
+                .foregroundStyle(.textPrimary)
+            }
+            .padding(12)
+            .glassEffect(.regular, in: .rect(cornerRadius: 20))
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    /// Turning it on asks for permission the first time; if that's refused the
+    /// switch goes back off with an explanation.
+    private func setReminder(_ on: Bool) {
+        reminderProblem = nil
+        guard on else {
+            settings.reminderEnabled = false
+            Reminders.cancel()
+            return
+        }
+        settings.reminderEnabled = true
+        Task {
+            if await Reminders.requestPermission() == .denied {
+                withAnimation { settings.reminderEnabled = false }
+                reminderProblem = "Notifications are off for Buy It For Life. Turn them on in the Settings app under Notifications, then try again."
+                return
+            }
+            await Reminders.reschedule(settings: settings, context: modelContext)
+        }
+    }
+
+    private func shiftReminder(by minutes: Int) {
+        withAnimation(.snappy(duration: 0.2)) {
+            settings.reminderMinutes = (settings.reminderMinutes + minutes + 24 * 60) % (24 * 60)
+        }
+        Task { await Reminders.reschedule(settings: settings, context: modelContext) }
+    }
+
     // MARK: Paid off
 
     private var paidOffSection: some View {
@@ -233,6 +360,67 @@ struct SettingsView: View {
             }
             .card()
             Text("Items under the target get the Paid off label in Insights and Wardrobe.")
+                .font(.footnote)
+                .foregroundStyle(.textSecondary)
+                .padding(.horizontal, 4)
+        }
+    }
+
+    // MARK: Sell suggestions
+
+    private var sellSection: some View {
+        let months = settings.sellSuggestionMonths
+        let unworn = items.count { $0.isSellSuggestion(months: months) }
+        return VStack(alignment: .leading, spacing: 8) {
+            SectionLabel("Sell suggestions")
+            VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Suggest selling after")
+                        .font(.body)
+                        .foregroundStyle(.textPrimary)
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text("\(months)")
+                            .font(.system(.largeTitle, design: .rounded, weight: .bold).monospacedDigit())
+                            .foregroundStyle(.textPrimary)
+                            .contentTransition(.numericText())
+                        Text("months unworn")
+                            .font(.rowDetail)
+                            .foregroundStyle(.textSecondary)
+                    }
+                }
+                HStack(spacing: 8) {
+                    ForEach(Self.sellMonthOptions, id: \.self) { option in
+                        Button {
+                            withAnimation(.snappy(duration: 0.2)) { settings.sellSuggestionMonths = option }
+                        } label: {
+                            Text("\(option)")
+                                .font(.number(.subheadline))
+                                .foregroundStyle(option == months ? .textPrimary : .textSecondary)
+                                .frame(maxWidth: .infinity, minHeight: 40)
+                                .background(option == months ? AnyShapeStyle(.fillSelected) : AnyShapeStyle(.clear),
+                                            in: .capsule)
+                                .overlay { Capsule().strokeBorder(.stroke, lineWidth: 1) }
+                                .contentShape(.capsule)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("\(option) months")
+                        .accessibilityAddTraits(option == months ? .isSelected : [])
+                    }
+                }
+                HStack(spacing: 10) {
+                    Circle().fill(.warning).frame(width: 8, height: 8)
+                    Text(unworn == 0
+                         ? "Nothing is unworn that long."
+                         : "\(unworn) \(unworn == 1 ? "item hasn’t" : "items haven’t") been worn in \(months) months.")
+                        .font(.rowDetail)
+                        .foregroundStyle(.textPrimary)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.surfaceRaised, in: .rect(cornerRadius: Radius.tile))
+            }
+            .card()
+            Text("They’re listed under To sell in Wardrobe. Daily drivers are never suggested.")
                 .font(.footnote)
                 .foregroundStyle(.textSecondary)
                 .padding(.horizontal, 4)

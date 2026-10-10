@@ -21,7 +21,9 @@ struct ItemDetailView: View {
                 costCard(stats)
                 statTiles(stats)
                 WearsPerMonthCard(months: stats.wearsPerMonth())
+                if !item.isSold { dailyDriverCard }
                 weatherCard
+                    .opacity(item.isDailyDriver ? 0.45 : 1)
                 if !item.notes.isEmpty { notesCard }
                 actions
             }
@@ -34,6 +36,20 @@ struct ItemDetailView: View {
         .toolbarVisibility(.visible, for: .navigationBar)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            if !item.isSold {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        withAnimation(.snappy) { item.isFavorite.toggle() }
+                        try? modelContext.save()
+                    } label: {
+                        Image(systemName: item.isFavorite ? "star.fill" : "star")
+                    }
+                    .tint(.textPrimary)
+                    .accessibilityLabel(item.isFavorite ? "Remove from favorites" : "Add to favorites")
+                    .sensoryFeedback(.selection, trigger: item.isFavorite)
+                }
+                ToolbarSpacer(.fixed, placement: .primaryAction)
+            }
             ToolbarItem(placement: .primaryAction) {
                 Button("Edit") { showEdit = true }
                     .tint(.textPrimary)
@@ -81,6 +97,11 @@ struct ItemDetailView: View {
             Text(metaLine)
                 .font(.rowDetail)
                 .foregroundStyle(.textSecondary)
+            if item.isFavorite && !item.isSold {
+                Text(item.isDailyDriver ? "Favorite" : "Favorite · listed first on Today when the weather fits")
+                    .font(.rowDetail)
+                    .foregroundStyle(.textSecondary)
+            }
         }
         .padding(.horizontal, 4)
     }
@@ -88,7 +109,7 @@ struct ItemDetailView: View {
     private var metaLine: String {
         var parts = [
             item.category.title,
-            "Bought \(item.purchaseDate.formatted(date: .abbreviated, time: .omitted))",
+            "Bought \(item.boughtSecondHand ? "second-hand" : "new"), \(item.purchaseDate.formatted(date: .abbreviated, time: .omitted))",
             Money.format(cents: item.purchasePriceCents),
         ]
         if let soldDate = item.soldDate {
@@ -153,6 +174,24 @@ struct ItemDetailView: View {
         case 1: "1 day"
         case let days?: "\(days) days"
         }
+    }
+
+    private var dailyDriverCard: some View {
+        ToggleRow(
+            label: "Daily driver",
+            detail: item.isDailyDriver
+                ? "Pre-selected every day. Weather is ignored."
+                : "For things you wear every day: watch, belt, wallet.",
+            isOn: Binding(
+                get: { item.isDailyDriver },
+                set: { newValue in
+                    withAnimation(.snappy) { item.isDailyDriver = newValue }
+                    try? modelContext.save()
+                }
+            )
+        )
+        .padding(.horizontal, -4)
+        .card(padding: nil)
     }
 
     private var weatherCard: some View {
