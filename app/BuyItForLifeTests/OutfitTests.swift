@@ -125,6 +125,15 @@ struct SellSuggestionTests {
         #expect(!sold.isSellSuggestion(months: 3, now: now))
     }
 
+    @Test func inactiveItemsAreLeftOffTodayButCanBeSold() {
+        let now = Date.now
+        let jeans = item(bought: monthsAgo(20, from: now), added: monthsAgo(20, from: now))
+        #expect(jeans.isOfferedOnToday(on: now))
+        jeans.isInactive = true
+        #expect(!jeans.isOfferedOnToday(on: now))
+        #expect(jeans.isSellSuggestion(months: 12, now: now))
+    }
+
     @Test func remindersCountOnlyNonDailyDriverPicks() throws {
         let watch = item(bought: .now, added: .now, dailyDriver: true)
         let log = try DayLog.fetchOrCreate(dayKey: DayKey.make(for: .now), in: context)

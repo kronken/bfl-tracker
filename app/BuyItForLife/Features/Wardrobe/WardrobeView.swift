@@ -298,6 +298,7 @@ struct WardrobeCard: View {
             return "Sold \(price) · \(soldDate.formatted(.dateTime.month(.abbreviated).year()))"
         }
         let wears = stats.wearCount == 1 ? "1 wear" : "\(stats.wearCount.formatted()) wears"
+        if item.isInactive { return "Inactive · \(wears)" }
         if item.isDailyDriver { return "Daily driver · \(wears)" }
         return "\(wears) · \(Money.format(cents: item.purchasePriceCents))"
     }

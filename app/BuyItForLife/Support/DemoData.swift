@@ -54,6 +54,8 @@ enum DemoData {
             context.insert(jeans)
             owned.append(jeans)
         }
+        // Owned but not worn: hidden on Today.
+        owned[owned.count - 1].isInactive = true
         // Daily drivers: worn every day, any weather.
         var drivers: [Item] = []
         for (name, price, wears, tint) in [("Field watch", 495, 1620, "#2A2A2E"), ("Leather belt", 130, 1400, "#2A1D14"),

@@ -117,6 +117,9 @@ struct ItemFormView: View {
                 RowDivider()
                 ToggleRow(label: "Daily driver", detail: "Pre-selected every day, any weather",
                           isOn: $draft.isDailyDriver)
+                RowDivider()
+                ToggleRow(label: "Inactive", detail: "Not suggested on Today. Still in Wardrobe and Insights.",
+                          isOn: $draft.isInactive)
             }
             .card(padding: nil)
         }

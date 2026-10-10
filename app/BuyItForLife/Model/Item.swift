@@ -26,6 +26,9 @@ final class Item {
     /// Worn every day regardless of weather (watch, belt, wallet): pre-selected
     /// on Today, never sorted by weather, never suggested for selling.
     var isDailyDriver: Bool = false
+    /// Owned but not worn (wrong size, wrong style): never suggested on Today,
+    /// but still in Wardrobe, Insights and To sell.
+    var isInactive: Bool = false
 
     // Weather it's for
     var minTempC: Int = -30
@@ -117,6 +120,11 @@ extension Item {
         if temperatureC > Double(maxTempC) { return "Best below \(Temperature.format(celsius: maxTempC))" }
         let names = WeatherConditions.options.filter { weather.contains($0.condition) }.map { $0.title.lowercased() }
         return names.isEmpty ? "Not for this weather" : "Not for \(names.joined(separator: " or "))"
+    }
+
+    /// Whether Today should offer the item on `day`: owned then and not inactive.
+    func isOfferedOnToday(on day: Date, calendar: Calendar = .current) -> Bool {
+        !isInactive && wasOwned(on: day, calendar: calendar)
     }
 
     /// Whether the item was in the wardrobe on `day`: bought on or before it,

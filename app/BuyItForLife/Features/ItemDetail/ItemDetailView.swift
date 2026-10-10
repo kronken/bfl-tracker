@@ -97,6 +97,11 @@ struct ItemDetailView: View {
             Text(metaLine)
                 .font(.rowDetail)
                 .foregroundStyle(.textSecondary)
+            if item.isInactive && !item.isSold {
+                Text("Inactive · not suggested on Today")
+                    .font(.rowDetail)
+                    .foregroundStyle(.textSecondary)
+            }
             if item.isFavorite && !item.isSold {
                 Text(item.isDailyDriver ? "Favorite" : "Favorite · listed first on Today when the weather fits")
                     .font(.rowDetail)

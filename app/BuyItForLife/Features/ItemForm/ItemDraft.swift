@@ -53,6 +53,7 @@ struct ItemDraft: Equatable {
     var boughtSecondHand = false
     var isFavorite = false
     var isDailyDriver = false
+    var isInactive = false
     var category: ItemCategory?
     var minTempC = -30
     var maxTempC = 35
@@ -78,6 +79,7 @@ struct ItemDraft: Equatable {
         boughtSecondHand = item.boughtSecondHand
         isFavorite = item.isFavorite
         isDailyDriver = item.isDailyDriver
+        isInactive = item.isInactive
         category = item.category
         minTempC = item.minTempC
         maxTempC = item.maxTempC
@@ -123,6 +125,7 @@ struct ItemDraft: Equatable {
         item.boughtSecondHand = boughtSecondHand
         item.isFavorite = isFavorite
         item.isDailyDriver = isDailyDriver
+        item.isInactive = isInactive
         item.category = category ?? .other
         item.minTempC = minTempC
         item.maxTempC = maxTempC

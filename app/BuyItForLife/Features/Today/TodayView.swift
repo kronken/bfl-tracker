@@ -170,9 +170,10 @@ struct TodayView: View {
 
     // MARK: Outfit
 
-    /// Items in the wardrobe on the selected day, favorites first, then most worn.
+    /// Items Today offers on the selected day (owned then, not inactive),
+    /// favorites first, then most worn.
     private var owned: [Item] {
-        items.filter { $0.wasOwned(on: selectedDay) }
+        items.filter { $0.isOfferedOnToday(on: selectedDay) }
             .sorted {
                 OutfitRules.isOrderedBefore(favoriteA: $0.isFavorite, wearsA: $0.stats.wearCount,
                                             favoriteB: $1.isFavorite, wearsB: $1.stats.wearCount)
