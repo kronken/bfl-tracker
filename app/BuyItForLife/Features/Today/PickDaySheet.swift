@@ -14,7 +14,7 @@ struct PickDaySheet: View {
     private let calendar = Calendar.current
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text("Pick a day")
                     .font(.cardTitle)
@@ -27,22 +27,32 @@ struct PickDaySheet: View {
                     .frame(minHeight: 44)
                     .glassEffect(.regular.interactive(), in: .capsule)
             }
+            .padding(.horizontal, 16)
+            .padding(.top, 20)
+            .padding(.bottom, 16)
 
-            monthHeader
-            grid
-            summary
-
-            Spacer(minLength: 0)
-
-            Button(ctaTitle) {
-                selectedDay = calendar.startOfDay(for: day)
-                dismiss()
+            // Scrolls, so a long list of worn items can be read to the end.
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    monthHeader
+                    grid
+                    summary
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
             }
-            .buttonStyle(.primary)
+            .scrollIndicators(.hidden)
+            .safeAreaBar(edge: .bottom) {
+                Button(ctaTitle) {
+                    selectedDay = calendar.startOfDay(for: day)
+                    dismiss()
+                }
+                .buttonStyle(.primary)
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 16)
+            }
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 20)
-        .padding(.bottom, 16)
         .presentationDetents([.large])
         .presentationBackground(.surface)
         .presentationDragIndicator(.visible)
@@ -154,9 +164,17 @@ struct PickDaySheet: View {
 
     private var dayLogs: [DayLog] { logs.filter { $0.dayKey == DayKey.make(for: day) } }
 
+    /// The day's items, head to toe like Today's sections, then by name.
     private var wornItems: [Item] {
         var seen = Set<UUID>()
-        return dayLogs.flatMap { $0.items ?? [] }.filter { seen.insert($0.id).inserted }
+        let order = Dictionary(uniqueKeysWithValues: OutfitGroup.allCases.enumerated().map { ($1, $0) })
+        return dayLogs.flatMap { $0.items ?? [] }
+            .filter { seen.insert($0.id).inserted }
+            .sorted {
+                let a = order[OutfitGroup(category: $0.category)] ?? 0
+                let b = order[OutfitGroup(category: $1.category)] ?? 0
+                return a != b ? a < b : $0.name.localizedStandardCompare($1.name) == .orderedAscending
+            }
     }
 
     private var summary: some View {
