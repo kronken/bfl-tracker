@@ -1,9 +1,11 @@
+import StoreKit
 import SwiftData
 import SwiftUI
 
 struct TodayView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.requestReview) private var requestReview
     @Environment(AppSettings.self) private var settings
     @Environment(WeatherStore.self) private var weather
 
@@ -331,6 +333,22 @@ struct TodayView: View {
         toggleCount += 1
         if isToday {
             Task { await Reminders.reschedule(settings: settings, context: modelContext) }
+            askForReviewIfDue()
+        }
+    }
+
+    /// After a week of logging every day, ask for a rating once per version.
+    private func askForReviewIfDue() {
+        let logged = Set(logs.filter { !($0.items ?? []).isEmpty }.map(\.dayKey))
+        let streak = ReviewPrompt.streak(loggedDayKeys: logged, today: .now)
+        let version = ReviewPrompt.currentVersion
+        guard ReviewPrompt.shouldAsk(streak: streak, askedVersion: ReviewPrompt.askedVersion, currentVersion: version)
+        else { return }
+        ReviewPrompt.askedVersion = version
+        Task {
+            // Let the checkmark land first.
+            try? await Task.sleep(for: .seconds(1))
+            requestReview()
         }
     }
 

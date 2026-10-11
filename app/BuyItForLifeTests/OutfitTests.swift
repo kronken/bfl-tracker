@@ -134,3 +134,32 @@ struct SellSuggestionTests {
         #expect(Reminders.isLoggedToday(context: context))
     }
 }
+
+struct ReviewPromptTests {
+    private let calendar: Calendar = {
+        var c = Calendar(identifier: .gregorian)
+        c.timeZone = TimeZone(identifier: "Europe/Helsinki")!
+        return c
+    }()
+
+    private func keys(_ days: ClosedRange<Int>) -> Set<String> {
+        Set(days.map { String(format: "2026-10-%02d", $0) })
+    }
+
+    private var today: Date { calendar.date(from: DateComponents(year: 2026, month: 10, day: 11, hour: 9))! }
+
+    @Test func countsConsecutiveDaysEndingToday() {
+        #expect(ReviewPrompt.streak(loggedDayKeys: keys(5...11), today: today, calendar: calendar) == 7)
+        var gap = keys(5...11)
+        gap.remove("2026-10-08")
+        #expect(ReviewPrompt.streak(loggedDayKeys: gap, today: today, calendar: calendar) == 3)
+        #expect(ReviewPrompt.streak(loggedDayKeys: keys(1...10), today: today, calendar: calendar) == 0)
+    }
+
+    @Test func asksAfterAWeekOncePerVersion() {
+        #expect(!ReviewPrompt.shouldAsk(streak: 6, askedVersion: nil, currentVersion: "1.4"))
+        #expect(ReviewPrompt.shouldAsk(streak: 7, askedVersion: nil, currentVersion: "1.4"))
+        #expect(!ReviewPrompt.shouldAsk(streak: 30, askedVersion: "1.4", currentVersion: "1.4"))
+        #expect(ReviewPrompt.shouldAsk(streak: 7, askedVersion: "1.3", currentVersion: "1.4"))
+    }
+}
