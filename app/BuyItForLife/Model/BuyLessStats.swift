@@ -19,16 +19,19 @@ nonisolated struct BuyLessStats: Equatable, Sendable {
     var spentThisYearCents: Int
     var boughtThisMonth: Int
     var boughtThisYear: Int
-    /// Purchases per calendar year, oldest first; each purchase counts 1.
-    var purchasesPerYear: [(year: Int, count: Int)]
+    /// Purchases in each of the last 12 calendar months, oldest first,
+    /// ending with this month; each purchase counts 1.
+    var purchasesPerMonth: [(monthStart: Date, count: Int)]
+    /// Whether anything was bought before (or in) these 12 months at all.
+    var hasPurchases: Bool { lastPurchase != nil }
     var lastPurchase: Purchase?
 
     static func == (a: BuyLessStats, b: BuyLessStats) -> Bool {
         a.currentStreakDays == b.currentStreakDays && a.longestStreakDays == b.longestStreakDays
             && a.spentThisMonthCents == b.spentThisMonthCents && a.spentThisYearCents == b.spentThisYearCents
             && a.boughtThisMonth == b.boughtThisMonth && a.boughtThisYear == b.boughtThisYear
-            && a.purchasesPerYear.map(\.year) == b.purchasesPerYear.map(\.year)
-            && a.purchasesPerYear.map(\.count) == b.purchasesPerYear.map(\.count)
+            && a.purchasesPerMonth.map(\.monthStart) == b.purchasesPerMonth.map(\.monthStart)
+            && a.purchasesPerMonth.map(\.count) == b.purchasesPerMonth.map(\.count)
             && a.lastPurchase == b.lastPurchase
     }
 
@@ -58,22 +61,18 @@ nonisolated struct BuyLessStats: Equatable, Sendable {
         boughtThisMonth = thisMonth.count
         boughtThisYear = thisYear.count
 
-        if let first = purchases.first.map({ calendar.component(.year, from: $0.date) }), let current = month.year {
-            var counts: [Int: Int] = [:]
-            for purchase in purchases { counts[calendar.component(.year, from: purchase.date), default: 0] += 1 }
-            purchasesPerYear = (first...max(first, current)).map { ($0, counts[$0] ?? 0) }
-        } else {
-            purchasesPerYear = []
+        let thisMonthStart = calendar.date(from: month) ?? today
+        let monthStarts = (0..<12).reversed().compactMap { calendar.date(byAdding: .month, value: -$0, to: thisMonthStart) }
+        var counts: [Date: Int] = [:]
+        for purchase in purchases {
+            if let start = calendar.date(from: calendar.dateComponents([.year, .month], from: purchase.date)) {
+                counts[start, default: 0] += 1
+            }
         }
+        purchasesPerMonth = monthStarts.map { ($0, counts[$0] ?? 0) }
     }
 
     func isGoalReached(goalDays: Int) -> Bool { currentStreakDays >= goalDays }
-
-    /// The current year's count is the lowest of all years so far.
-    var isBestYear: Bool {
-        guard let current = purchasesPerYear.last, purchasesPerYear.count > 1 else { return false }
-        return purchasesPerYear.dropLast().allSatisfy { current.count < $0.count }
-    }
 }
 
 /// The short, warm lines on the buy-less card. Never scolds.
@@ -97,15 +96,12 @@ nonisolated enum BuyLessCopy {
         return "\(left) \(left == 1 ? "day" : "days") to your \(goalDays)-day goal"
     }
 
-    /// e.g. "From 5 a year to none. Last buy: Raw denim jeans, Aug 2025."
-    static func yearSummary(_ stats: BuyLessStats) -> String {
-        var parts: [String] = []
-        if let first = stats.purchasesPerYear.first, let current = stats.purchasesPerYear.last,
-           stats.purchasesPerYear.count > 1 {
-            let peak = stats.purchasesPerYear.map(\.count).max() ?? first.count
-            let now = current.count == 0 ? "none" : "\(current.count)"
-            if current.count < peak { parts.append("From \(peak) a year to \(now) this year.") }
-        }
+    /// e.g. "4 things in the last 12 months. Last buy: Merino tee, Aug 2026."
+    static func monthSummary(_ stats: BuyLessStats) -> String {
+        let total = stats.purchasesPerMonth.reduce(0) { $0 + $1.count }
+        var parts = [total == 0 ? "Nothing bought in the last 12 months."
+                     : total == 1 ? "1 thing in the last 12 months."
+                     : "\(total) things in the last 12 months."]
         if let last = stats.lastPurchase {
             parts.append("Last buy: \(last.name), \(last.date.formatted(.dateTime.month(.abbreviated).year())).")
         }

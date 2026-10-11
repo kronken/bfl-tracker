@@ -29,7 +29,8 @@ struct BuyLessTests {
     @Test func withoutPurchasesStreakStartsWhenEnabled() {
         let s = stats([], enabled: date(2026, 10, 1))
         #expect(s.currentStreakDays == 10)
-        #expect(s.purchasesPerYear.isEmpty)
+        #expect(!s.hasPurchases)
+        #expect(s.purchasesPerMonth.allSatisfy { $0.count == 0 })
     }
 
     @Test func futurePurchasesDontResetTheStreak() {
@@ -53,17 +54,15 @@ struct BuyLessTests {
         #expect(s.spentThisMonthCents == 4_000)
         #expect(s.spentThisYearCents == 14_000)
         #expect(s.boughtThisMonth == 1)
-        #expect(s.purchasesPerYear.map(\.year) == [2025, 2026])
-        #expect(s.purchasesPerYear.map(\.count) == [1, 2])
+        // Last 12 months: Nov 2025 … Oct 2026; Oct 2025 falls outside.
+        #expect(s.purchasesPerMonth.count == 12)
+        #expect(s.purchasesPerMonth.map(\.count) == [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1])
     }
 
-    @Test func bestYearWhenThisYearIsLowest() {
-        let s = stats([Purchase(date: date(2024, 2, 2), cents: 1, name: "A"),
-                       Purchase(date: date(2024, 3, 2), cents: 1, name: "B"),
-                       Purchase(date: date(2025, 2, 2), cents: 1, name: "C")])
-        #expect(s.purchasesPerYear.map(\.count) == [2, 1, 0])
-        #expect(s.isBestYear)
-        #expect(BuyLessCopy.yearSummary(s).hasPrefix("From 2 a year to none this year."))
+    @Test func monthSummaryCountsTheLastTwelveMonths() {
+        let s = stats([Purchase(date: date(2026, 8, 2), cents: 1, name: "Merino tee"),
+                       Purchase(date: date(2026, 5, 2), cents: 1, name: "Beanie")])
+        #expect(BuyLessCopy.monthSummary(s).hasPrefix("2 things in the last 12 months. Last buy: Merino tee,"))
     }
 
     @Test func cheersNeverScold() {

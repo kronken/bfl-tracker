@@ -21,9 +21,9 @@ struct BuyLessCard: View {
                           spent: stats.spentThisYearCents, limit: yearlyBudgetCents,
                           bought: stats.boughtThisYear, isYear: true)
             }
-            if !stats.purchasesPerYear.isEmpty {
+            if stats.hasPurchases {
                 Rectangle().fill(.stroke).frame(height: 1)
-                perYearChart
+                perMonthChart
             }
         }
         .card()
@@ -122,45 +122,44 @@ struct BuyLessCard: View {
         return isYear ? "\(base) · \(Money.format(cents: limit - spent)) left" : base
     }
 
-    // MARK: Per year
+    // MARK: Per month
 
-    private var perYearChart: some View {
-        let years = Array(stats.purchasesPerYear.suffix(7))
-        let peak = years.map(\.count).max() ?? 0
+    private var perMonthChart: some View {
+        let months = stats.purchasesPerMonth
+        let peak = months.map(\.count).max() ?? 0
         return VStack(alignment: .leading, spacing: 8) {
-            Text("THINGS BOUGHT PER YEAR")
+            Text("THINGS BOUGHT PER MONTH")
                 .font(.label)
                 .tracking(0.3)
                 .foregroundStyle(.textSecondary)
-            HStack(alignment: .bottom, spacing: 8) {
-                ForEach(Array(years.enumerated()), id: \.offset) { index, entry in
-                    let isCurrent = index == years.count - 1
+            HStack(alignment: .bottom, spacing: 4) {
+                ForEach(Array(months.enumerated()), id: \.offset) { index, entry in
+                    // This month in green while nothing has been bought in it.
+                    let goodMonth = index == months.count - 1 && entry.count == 0
                     VStack(spacing: 4) {
-                        Text("\(entry.count)")
+                        Text(entry.count == 0 ? " " : "\(entry.count)")
                             .font(.number(.caption))
                             .foregroundStyle(.textSecondary)
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(isCurrent && stats.isBestYear ? AnyShapeStyle(.positive) : AnyShapeStyle(.dataBlue))
-                            .frame(height: peak > 0 ? max(3, 54 * CGFloat(entry.count) / CGFloat(peak)) : 3)
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(goodMonth ? AnyShapeStyle(.positive)
+                                  : entry.count > 0 ? AnyShapeStyle(.dataBlue) : AnyShapeStyle(.surfaceRaised))
+                            .frame(height: peak > 0 && entry.count > 0 ? max(3, 54 * CGFloat(entry.count) / CGFloat(peak)) : 3)
                     }
                     .frame(maxWidth: .infinity)
                 }
             }
             .frame(height: 76, alignment: .bottom)
-            HStack(spacing: 8) {
-                ForEach(Array(years.enumerated()), id: \.offset) { index, entry in
-                    Text(index == 0 ? String(entry.year) : "’" + String(format: "%02d", entry.year % 100))
+            HStack(spacing: 4) {
+                ForEach(Array(months.enumerated()), id: \.offset) { _, entry in
+                    Text(entry.monthStart.formatted(.dateTime.month(.narrow)))
                         .frame(maxWidth: .infinity)
                 }
             }
             .font(.label)
             .foregroundStyle(.textSecondary)
-            let summary = BuyLessCopy.yearSummary(stats)
-            if !summary.isEmpty {
-                Text(summary)
-                    .font(.rowDetail)
-                    .foregroundStyle(.textSecondary)
-            }
+            Text(BuyLessCopy.monthSummary(stats))
+                .font(.rowDetail)
+                .foregroundStyle(.textSecondary)
         }
         .accessibilityElement(children: .combine)
     }
