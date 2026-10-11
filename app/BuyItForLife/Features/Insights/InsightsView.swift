@@ -19,9 +19,12 @@ struct InsightsView: View {
                     PlaceholderCard(text: "Add items in Wardrobe to see what your clothes cost per day and per wear.")
                 } else {
                     let wardrobe = WardrobeStats(items: items.map(\.stats))
-                    CostPerDayCard(wardrobe: wardrobe)
+                    CostPerDayCard(wardrobe: wardrobe, hidesTotals: settings.hidesTotals)
                     totals(wardrobe)
-                    SpendPerYearCard(points: wardrobe.spendPerYear(), cumulative: $cumulativeSpend)
+                    // Feel-good mode leaves the spending chart out entirely.
+                    if !settings.hidesTotals {
+                        SpendPerYearCard(points: wardrobe.spendPerYear(), cumulative: $cumulativeSpend)
+                    }
                     ranking
                 }
             }
@@ -48,9 +51,17 @@ struct InsightsView: View {
     private func totals(_ wardrobe: WardrobeStats) -> some View {
         let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
         return LazyVGrid(columns: columns, spacing: 12) {
-            TotalTile(label: "Total spent", value: Money.format(cents: wardrobe.totalSpentCents),
-                      detail: wardrobe.repairsCents > 0 ? "incl. \(Money.format(cents: wardrobe.repairsCents)) repairs" : nil)
-            TotalTile(label: "Back from sales", value: Money.format(cents: wardrobe.backFromSalesCents))
+            if settings.hidesTotals {
+                // Feel-good mode: use and value instead of money spent.
+                let owned = items.filter { !$0.isSold }
+                let paidOff = owned.count { $0.stats.isPaidOff(targetCents: settings.paidOffTargetCents) }
+                TotalTile(label: "Items owned", value: owned.count.formatted())
+                TotalTile(label: "Paid off", value: "\(paidOff) of \(owned.count)")
+            } else {
+                TotalTile(label: "Total spent", value: Money.format(cents: wardrobe.totalSpentCents),
+                          detail: wardrobe.repairsCents > 0 ? "incl. \(Money.format(cents: wardrobe.repairsCents)) repairs" : nil)
+                TotalTile(label: "Back from sales", value: Money.format(cents: wardrobe.backFromSalesCents))
+            }
             TotalTile(label: "Total wears", value: wardrobe.wearCount.formatted())
             TotalTile(label: "Avg cost / wear",
                       value: wardrobe.averageCostPerWearCents.map { Money.format(fractionalCents: $0) } ?? "–")
@@ -118,6 +129,7 @@ struct InsightsView: View {
 /// The headline figure with its year-by-year line.
 private struct CostPerDayCard: View {
     var wardrobe: WardrobeStats
+    var hidesTotals: Bool
 
     var body: some View {
         let now = wardrobe.costPerDayCents() ?? 0
@@ -152,14 +164,30 @@ private struct CostPerDayCard: View {
     }
 
     private func summary(now: Double) -> String {
-        let days = wardrobe.daysTracked()
-        var text = "\(Money.format(cents: wardrobe.netCostCents)) net over \(days.formatted()) \(days == 1 ? "day" : "days")"
-        guard let yearAgo = Calendar.current.date(byAdding: .year, value: -1, to: .now),
-              let then = wardrobe.costPerDayCents(asOf: yearAgo)
-        else { return text }
-        let change = now - then
-        if abs(change) >= 0.5 {
-            text += " · \(change < 0 ? "down" : "up") \(Money.format(fractionalCents: abs(change))) on last year"
+        let yearAgo = Calendar.current.date(byAdding: .year, value: -1, to: .now)
+            .flatMap { wardrobe.costPerDayCents(asOf: $0) }
+        return CostPerDayCopy.summary(nowCents: now, yearAgoCents: yearAgo, netCents: wardrobe.netCostCents,
+                                      days: wardrobe.daysTracked(), hidesTotals: hidesTotals)
+    }
+}
+
+/// The line under the cost-per-day figure.
+nonisolated enum CostPerDayCopy {
+    /// Normal: "€2,858 net over 2,400 days · down €0.37 on last year".
+    /// Feel-good: no money totals and never shaming: "Down €0.37 on last year.
+    /// Every wear brings it lower." or a neutral "Up €0.12 on last year."
+    static func summary(nowCents: Double, yearAgoCents: Double?, netCents: Int, days: Int,
+                        hidesTotals: Bool, locale: Locale = .current) -> String {
+        let change = yearAgoCents.map { nowCents - $0 }
+        let significant = change.flatMap { abs($0) >= 0.5 ? $0 : nil }
+        if hidesTotals {
+            guard let change = significant else { return "Every wear brings it lower." }
+            let amount = Money.format(fractionalCents: abs(change), locale: locale)
+            return change < 0 ? "Down \(amount) on last year. Every wear brings it lower." : "Up \(amount) on last year."
+        }
+        var text = "\(Money.format(cents: netCents, locale: locale)) net over \(days.formatted()) \(days == 1 ? "day" : "days")"
+        if let change = significant {
+            text += " · \(change < 0 ? "down" : "up") \(Money.format(fractionalCents: abs(change), locale: locale)) on last year"
         }
         return text
     }

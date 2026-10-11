@@ -123,6 +123,10 @@ struct WardrobeView: View {
 
     private var summary: String {
         switch shelf {
+        case .owned where settings.hidesTotals:
+            WardrobeCopy.ownedLine(items: owned.count, wears: owned.reduce(0) { $0 + $1.stats.wearCount })
+        case .sold where settings.hidesTotals:
+            sold.count == 1 ? "1 item sold" : "\(sold.count) items sold"
         case .owned:
             "\(Money.format(cents: owned.reduce(0) { $0 + $1.stats.totalCostCents })) in what you own"
         case .toSell:
@@ -309,6 +313,16 @@ struct WardrobeCard: View {
         if item.isInactive { return "Inactive · \(wears)" }
         if item.isDailyDriver { return "Daily driver · \(wears)" }
         return "\(wears) · \(Money.format(cents: stats.totalCostCents))"
+    }
+}
+
+/// Feel-good wording for the Wardrobe heading.
+nonisolated enum WardrobeCopy {
+    /// "14 items, worn 7,400 times".
+    static func ownedLine(items: Int, wears: Int) -> String {
+        let itemText = items == 1 ? "1 item" : "\(items.formatted()) items"
+        let wearText = wears == 1 ? "worn once" : "worn \(wears.formatted()) times"
+        return "\(itemText), \(wearText)"
     }
 }
 

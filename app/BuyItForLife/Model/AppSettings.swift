@@ -14,6 +14,7 @@ final class AppSettings {
         static let paidOffTargetCents = "paidOffTargetCents"
         static let onboardingCompleted = "onboardingCompleted"
         static let sellSuggestionMonths = "sellSuggestionMonths"
+        static let feelGoodMode = "feelGoodMode"
         // Kept on this device only: notifications and their permission are per device.
         static let reminderEnabled = "reminderEnabled"
         static let reminderMinutes = "reminderMinutes"
@@ -43,6 +44,15 @@ final class AppSettings {
         didSet { store.set(Int64(sellSuggestionMonths), forKey: Key.sellSuggestionMonths) }
     }
 
+    /// Feel-good mode: hides big money totals (total spent, back from sales,
+    /// wardrobe value, yearly spend). Display only; nothing is recalculated.
+    var feelGoodMode: Bool {
+        didSet { store.set(feelGoodMode, forKey: Key.feelGoodMode) }
+    }
+
+    /// The one place screens ask whether to hide money totals.
+    var hidesTotals: Bool { feelGoodMode }
+
     /// Daily "nothing logged yet" reminder. Stored on this device only.
     var reminderEnabled: Bool {
         didSet { local.set(reminderEnabled, forKey: Key.reminderEnabled) }
@@ -65,6 +75,7 @@ final class AppSettings {
         onboardingCompleted = store.bool(forKey: Key.onboardingCompleted)
         let months = Int(store.longLong(forKey: Key.sellSuggestionMonths))
         sellSuggestionMonths = months > 0 ? months : Self.defaultSellSuggestionMonths
+        feelGoodMode = store.bool(forKey: Key.feelGoodMode)
         reminderEnabled = local.bool(forKey: Key.reminderEnabled)
         reminderMinutes = local.object(forKey: Key.reminderMinutes) as? Int ?? Self.defaultReminderMinutes
         #if DEBUG
@@ -72,6 +83,8 @@ final class AppSettings {
         if let override = UserDefaults.standard.string(forKey: "debugWeatherLocation") {
             weatherLocation = override
         }
+        // `-debugFeelGood YES` turns feel-good mode on for screenshots; never saved.
+        if UserDefaults.standard.bool(forKey: "debugFeelGood") { feelGoodMode = true }
         #endif
 
         observer = NotificationCenter.default.addObserver(
@@ -91,5 +104,6 @@ final class AppSettings {
         onboardingCompleted = store.bool(forKey: Key.onboardingCompleted)
         let months = Int(store.longLong(forKey: Key.sellSuggestionMonths))
         sellSuggestionMonths = months > 0 ? months : Self.defaultSellSuggestionMonths
+        feelGoodMode = store.bool(forKey: Key.feelGoodMode)
     }
 }

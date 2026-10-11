@@ -26,6 +26,7 @@ struct SettingsView: View {
                 reminderSection
                 paidOffSection
                 sellSection
+                displaySection
                 Text("Buy It For Life · version \(Self.version)")
                     .font(.footnote)
                     .foregroundStyle(.textSecondary)
@@ -360,6 +361,37 @@ struct SettingsView: View {
             }
             .card()
             Text("Items under the target get the Paid off label in Insights and Wardrobe.")
+                .font(.footnote)
+                .foregroundStyle(.textSecondary)
+                .padding(.horizontal, 4)
+        }
+    }
+
+    // MARK: Display
+
+    private var displaySection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel("Display")
+            Toggle(isOn: Binding(get: { settings.feelGoodMode },
+                                 set: { newValue in withAnimation(.snappy) { settings.feelGoodMode = newValue } })) {
+                HStack(spacing: 12) {
+                    iconTile("face.smiling")
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Feel-good mode")
+                            .font(.body)
+                            .foregroundStyle(.textPrimary)
+                        Text("Hide totals like money spent")
+                            .font(.footnote)
+                            .foregroundStyle(.textSecondary)
+                    }
+                }
+            }
+            .tint(.positive)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .frame(minHeight: 64)
+            .card(padding: nil)
+            Text("Hides total spent, money back from sales, wardrobe value and the yearly spend chart. Cost per wear, cost per day and item prices stay.")
                 .font(.footnote)
                 .foregroundStyle(.textSecondary)
                 .padding(.horizontal, 4)

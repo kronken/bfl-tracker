@@ -179,3 +179,32 @@ struct EmptyWhenZeroTests {
         #expect(count == 123)
     }
 }
+
+struct FeelGoodCopyTests {
+    let us = Locale(identifier: "en_US")
+
+    @Test func normalModeShowsNetSpend() {
+        let text = CostPerDayCopy.summary(nowCents: 117, yearAgoCents: 154, netCents: 285_800, days: 2_400,
+                                          hidesTotals: false, locale: us)
+        #expect(text.hasPrefix("$2,858 net over"))
+        #expect(text.hasSuffix("down $0.37 on last year"))
+    }
+
+    @Test func feelGoodModeHidesMoneyTotalsAndStaysPositive() {
+        let down = CostPerDayCopy.summary(nowCents: 117, yearAgoCents: 154, netCents: 285_800, days: 2_400,
+                                          hidesTotals: true, locale: us)
+        #expect(down == "Down $0.37 on last year. Every wear brings it lower.")
+        #expect(!down.contains("2,858"))
+        let up = CostPerDayCopy.summary(nowCents: 130, yearAgoCents: 118, netCents: 1, days: 1,
+                                        hidesTotals: true, locale: us)
+        #expect(up == "Up $0.12 on last year.")
+        let firstYear = CostPerDayCopy.summary(nowCents: 130, yearAgoCents: nil, netCents: 1, days: 1,
+                                               hidesTotals: true, locale: us)
+        #expect(firstYear == "Every wear brings it lower.")
+    }
+
+    @Test func wardrobeLineCountsItemsAndWears() {
+        #expect(WardrobeCopy.ownedLine(items: 14, wears: 7_400) == "14 items, worn \(7_400.formatted()) times")
+        #expect(WardrobeCopy.ownedLine(items: 1, wears: 1) == "1 item, worn once")
+    }
+}
