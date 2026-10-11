@@ -23,7 +23,7 @@ struct BuyItForLifeApp: App {
         #if DEBUG
         if DemoData.isEnabled { return DemoData.makeContainer() }
         #endif
-        let schema = Schema([Item.self, DayLog.self])
+        let schema = Schema([Item.self, DayLog.self, Repair.self, PieceEvent.self])
         let configuration = ModelConfiguration(
             schema: schema,
             cloudKitDatabase: .private("iCloud.com.joakimkronqvist.bifl")

@@ -239,7 +239,7 @@ struct TodayView: View {
             .padding(.top, 8)
         }
         ForEach(OutfitGroup.allCases) { group in
-            let groupItems = suited.filter { OutfitGroup(category: $0.category) == group }
+            let groupItems = suited.filter { OutfitGroup(item: $0) == group }
             if !groupItems.isEmpty { groupSection(group, items: groupItems, outfit: outfit) }
         }
         if !unsuited.isEmpty, let dayWeather {

@@ -2,7 +2,7 @@ import Foundation
 
 /// Today's sections, top to toe. Any number of items can be picked in each.
 nonisolated enum OutfitGroup: String, CaseIterable, Identifiable, Sendable {
-    case headwear, outerwear, tops, bottoms, footwear, more
+    case headwear, outerwear, tops, bottoms, footwear, basics, more
 
     var id: String { rawValue }
 
@@ -13,6 +13,7 @@ nonisolated enum OutfitGroup: String, CaseIterable, Identifiable, Sendable {
         case .tops: "Tops"
         case .bottoms: "Pants"
         case .footwear: "Shoes"
+        case .basics: "Basics"
         case .more: "More"
         }
     }
@@ -24,8 +25,14 @@ nonisolated enum OutfitGroup: String, CaseIterable, Identifiable, Sendable {
         case .tops, .knitwear: .tops
         case .bottoms: .bottoms
         case .footwear: .footwear
-        case .underwear, .accessories, .other: .more
+        case .underwear: .basics
+        case .accessories, .other: .more
         }
+    }
+
+    /// Identical-pieces items always go under Basics, whatever their category.
+    init(item: Item) {
+        self = item.isMultiPiece ? .basics : OutfitGroup(category: item.category)
     }
 }
 

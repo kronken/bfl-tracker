@@ -197,6 +197,12 @@ struct OutfitRow: View {
                             .font(.rowTitle)
                             .foregroundStyle(dimmed ? .textSecondary : .textPrimary)
                             .lineLimit(1)
+                        if item.isMultiPiece {
+                            Text("×\(item.piecesInUse)")
+                                .font(.number(.footnote))
+                                .foregroundStyle(.textSecondary)
+                                .accessibilityLabel("\(item.piecesInUse) pieces")
+                        }
                         if item.isFavorite {
                             Image(systemName: "star.fill")
                                 .font(.system(size: 11, weight: .semibold))

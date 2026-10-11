@@ -171,8 +171,8 @@ struct PickDaySheet: View {
         return dayLogs.flatMap { $0.items ?? [] }
             .filter { seen.insert($0.id).inserted }
             .sorted {
-                let a = order[OutfitGroup(category: $0.category)] ?? 0
-                let b = order[OutfitGroup(category: $1.category)] ?? 0
+                let a = order[OutfitGroup(item: $0)] ?? 0
+                let b = order[OutfitGroup(item: $1)] ?? 0
                 return a != b ? a < b : $0.name.localizedStandardCompare($1.name) == .orderedAscending
             }
     }

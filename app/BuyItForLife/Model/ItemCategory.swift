@@ -28,7 +28,7 @@ nonisolated enum ItemCategory: String, CaseIterable, Identifiable, Sendable {
         case .knitwear: "Knitwear"
         case .outerwear: "Outerwear"
         case .headwear: "Headwear"
-        case .underwear: "Underwear & socks"
+        case .underwear: "Basics"
         case .accessories: "Accessories"
         case .other: "Other"
         }

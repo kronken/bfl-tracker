@@ -29,6 +29,9 @@ final class Item {
     /// Owned but not worn (wrong size, wrong style): never suggested on Today,
     /// but still in Wardrobe, Insights and To sell.
     var isInactive: Bool = false
+    /// One item standing for several identical pieces (socks, boxers). Their
+    /// purchases and retirements live in `pieceEvents`.
+    var isMultiPiece: Bool = false
 
     // Weather it's for
     var minTempC: Int = -30
@@ -53,6 +56,8 @@ final class Item {
 
     // Wear log
     @Relationship(inverse: \DayLog.items) var wornOn: [DayLog]? = []
+    @Relationship(deleteRule: .cascade, inverse: \Repair.item) var repairs: [Repair]? = []
+    @Relationship(deleteRule: .cascade, inverse: \PieceEvent.item) var pieceEvents: [PieceEvent]? = []
 
     init(
         name: String,
@@ -97,14 +102,45 @@ extension Item {
     }
 
     var stats: ItemStats {
-        ItemStats(
+        let repairs = repairs ?? []
+        let purchases: [DatedCost] = isMultiPiece
+            ? boughtEvents.map { DatedCost(date: $0.date, cents: $0.priceCents ?? 0) }
+            : [DatedCost(date: purchaseDate, cents: purchasePriceCents)]
+        return ItemStats(
             purchaseDate: purchaseDate,
             purchasePriceCents: purchasePriceCents,
             priorWearCount: priorWearCount,
             loggedDayKeys: loggedDayKeys,
             soldDate: soldDate,
-            soldPriceCents: soldPriceCents
+            soldPriceCents: soldPriceCents,
+            repairsCents: repairs.reduce(0) { $0 + $1.priceCents },
+            datedCosts: purchases + repairs.map { DatedCost(date: $0.date, cents: $0.priceCents) }
         )
+    }
+
+    // MARK: Repairs and identical pieces
+
+    /// Repairs, newest first.
+    var sortedRepairs: [Repair] { (repairs ?? []).sorted { $0.date > $1.date } }
+
+    /// Piece purchases and retirements, newest first.
+    var sortedPieceEvents: [PieceEvent] { (pieceEvents ?? []).sorted { $0.date > $1.date } }
+
+    private var boughtEvents: [PieceEvent] { (pieceEvents ?? []).filter { $0.kind == .bought } }
+
+    var piecesBought: Int { boughtEvents.reduce(0) { $0 + $1.quantity } }
+    var piecesRetired: Int { (pieceEvents ?? []).filter { $0.kind == .retired }.reduce(0) { $0 + $1.quantity } }
+    /// Pieces still in use; 0 means all retired.
+    var piecesInUse: Int { max(0, piecesBought - piecesRetired) }
+
+    /// For identical pieces, the purchase price and date follow the log: the
+    /// sum of all purchases and the first purchase. Call after changing it.
+    func syncFromPieceEvents() {
+        guard isMultiPiece else { return }
+        let bought = boughtEvents
+        guard !bought.isEmpty else { return }
+        purchasePriceCents = bought.reduce(0) { $0 + ($1.priceCents ?? 0) }
+        if let first = bought.map(\.date).min() { purchaseDate = first }
     }
 
     /// Whether the item suits the given weather: the temperature is within its
@@ -124,7 +160,7 @@ extension Item {
 
     /// Whether Today should offer the item on `day`: owned then and not inactive.
     func isOfferedOnToday(on day: Date, calendar: Calendar = .current) -> Bool {
-        !isInactive && wasOwned(on: day, calendar: calendar)
+        !isInactive && !(isMultiPiece && piecesInUse == 0) && wasOwned(on: day, calendar: calendar)
     }
 
     /// Whether the item was in the wardrobe on `day`: bought on or before it,

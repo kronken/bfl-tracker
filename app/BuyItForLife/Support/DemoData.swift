@@ -15,7 +15,7 @@ enum DemoData {
     static var isLarge: Bool { UserDefaults.standard.bool(forKey: "demoLarge") }
 
     static func makeContainer() -> ModelContainer {
-        let schema = Schema([Item.self, DayLog.self])
+        let schema = Schema([Item.self, DayLog.self, Repair.self, PieceEvent.self])
         let configuration: ModelConfiguration
         if isLarge {
             let url = URL.temporaryDirectory.appending(path: "demo-\(UUID().uuidString).store")

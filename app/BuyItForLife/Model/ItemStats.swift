@@ -1,20 +1,41 @@
 import Foundation
 
+/// A cost on a date: a purchase or a repair. Insights counts each in its own year.
+nonisolated struct DatedCost: Equatable, Sendable {
+    var date: Date
+    var cents: Int
+}
+
 /// Cost and wear figures for one item. A plain value type so the maths can be
-/// tested without SwiftData.
+/// tested without SwiftData. All price maths in the app goes through here.
 nonisolated struct ItemStats: Equatable, Sendable {
     var purchaseDate: Date
+    /// The original price: what was paid for the item (for identical pieces,
+    /// all purchases together), without repairs.
     var purchasePriceCents: Int
     var priorWearCount: Int
     var loggedDayKeys: Set<String>
     var soldDate: Date?
     var soldPriceCents: Int?
+    /// Sum of the item's repairs.
+    var repairsCents: Int = 0
+    /// Every purchase and repair on its own date. Empty means one purchase of
+    /// `purchasePriceCents` on `purchaseDate`.
+    var datedCosts: [DatedCost] = []
+
+    /// Original price plus repairs.
+    var totalCostCents: Int { purchasePriceCents + repairsCents }
+
+    /// Costs with their dates, falling back to the single purchase.
+    var costTimeline: [DatedCost] {
+        datedCosts.isEmpty ? [DatedCost(date: purchaseDate, cents: totalCostCents)] : datedCosts
+    }
 
     /// Estimated earlier wears plus logged days.
     var wearCount: Int { max(0, priorWearCount) + loggedDayKeys.count }
 
-    /// Purchase price minus sale price, never below zero.
-    var netCostCents: Int { max(0, purchasePriceCents - (soldPriceCents ?? 0)) }
+    /// Total cost (original price plus repairs) minus sale price, never below zero.
+    var netCostCents: Int { max(0, totalCostCents - (soldPriceCents ?? 0)) }
 
     /// nil until the item has been worn at least once.
     var costPerWearCents: Double? {
@@ -85,7 +106,9 @@ nonisolated struct MonthCount: Equatable, Sendable {
 nonisolated struct WardrobeStats: Equatable, Sendable {
     var items: [ItemStats]
 
-    var totalSpentCents: Int { items.reduce(0) { $0 + $1.purchasePriceCents } }
+    /// Everything paid, repairs included.
+    var totalSpentCents: Int { items.reduce(0) { $0 + $1.totalCostCents } }
+    var repairsCents: Int { items.reduce(0) { $0 + $1.repairsCents } }
     var backFromSalesCents: Int { items.reduce(0) { $0 + ($1.soldPriceCents ?? 0) } }
     var netCostCents: Int { items.reduce(0) { $0 + $1.netCostCents } }
     var wearCount: Int { items.reduce(0) { $0 + $1.wearCount } }
@@ -112,8 +135,10 @@ nonisolated struct WardrobeStats: Equatable, Sendable {
         guard days > 0 else { return nil }
         let net = items.reduce(0) { total, item in
             guard calendar.startOfDay(for: item.purchaseDate) <= day else { return total }
+            // Purchases and repairs count from their own dates.
+            let paid = item.costTimeline.filter { calendar.startOfDay(for: $0.date) <= day }.reduce(0) { $0 + $1.cents }
             let soldByThen = item.soldDate.map { calendar.startOfDay(for: $0) <= day } ?? false
-            return total + max(0, item.purchasePriceCents - (soldByThen ? item.soldPriceCents ?? 0 : 0))
+            return total + max(0, paid - (soldByThen ? item.soldPriceCents ?? 0 : 0))
         }
         return Double(net) / Double(days)
     }
@@ -145,7 +170,9 @@ nonisolated struct WardrobeStats: Equatable, Sendable {
         let thisYear = max(firstYear, calendar.component(.year, from: now))
         var totals: [Int: Int] = [:]
         for item in items {
-            totals[calendar.component(.year, from: item.purchaseDate), default: 0] += item.purchasePriceCents
+            for cost in item.costTimeline {
+                totals[calendar.component(.year, from: cost.date), default: 0] += cost.cents
+            }
         }
         let points = (firstYear...thisYear).map {
             YearPoint(year: $0, isNow: $0 == thisYear, cents: Double(totals[$0] ?? 0))

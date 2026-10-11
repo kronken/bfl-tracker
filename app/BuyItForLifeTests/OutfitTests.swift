@@ -68,7 +68,7 @@ struct SellSuggestionTests {
     private let calendar = Calendar.current
 
     init() throws {
-        let schema = Schema([Item.self, DayLog.self])
+        let schema = Schema([Item.self, DayLog.self, Repair.self, PieceEvent.self])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         context = ModelContext(try ModelContainer(for: schema, configurations: [config]))
     }
