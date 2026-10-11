@@ -95,14 +95,21 @@ struct ItemFormView: View {
                         .textInputAutocapitalization(.words)
                         .focused($focusedField, equals: .name)
                 }
-                RowDivider()
-                FormRow(label: "Price") {
-                    priceField($draft.priceText, field: .price)
-                }
-                RowDivider()
-                FormRow(label: "Bought") {
-                    DatePicker("Bought", selection: $draft.purchaseDate, in: ...Date.now, displayedComponents: .date)
-                        .labelsHidden()
+                if draft.hasPieceLog {
+                    RowDivider()
+                    FormRow(label: "Price and date", detail: "Kept in the item’s log: Add more and Retire") {
+                        EmptyView()
+                    }
+                } else {
+                    RowDivider()
+                    FormRow(label: draft.isMultiPiece ? "Price for all" : "Price") {
+                        priceField($draft.priceText, field: .price)
+                    }
+                    RowDivider()
+                    FormRow(label: "Bought") {
+                        DatePicker("Bought", selection: $draft.purchaseDate, in: ...Date.now, displayedComponents: .date)
+                            .labelsHidden()
+                    }
                 }
                 RowDivider()
                 ToggleRow(label: "Bought second-hand", detail: "Pre-owned, vintage or swapped",
@@ -120,6 +127,19 @@ struct ItemFormView: View {
                 RowDivider()
                 ToggleRow(label: "Inactive", detail: "Not suggested on Today. Still in Wardrobe and Insights.",
                           isOn: $draft.isInactive)
+                RowDivider()
+                ToggleRow(label: "Identical pieces",
+                          detail: draft.pieceLogLocked
+                              ? "Can’t be turned off once pieces have been added or retired"
+                              : "Socks, boxers, basic tees. Log the set, not the piece",
+                          isOn: $draft.isMultiPiece)
+                    .disabled(draft.pieceLogLocked)
+                if draft.isMultiPiece && !draft.hasPieceLog {
+                    RowDivider()
+                    FormRow(label: "How many") {
+                        CountStepper(value: $draft.pieceCount, range: 2...99, label: "How many")
+                    }
+                }
             }
             .card(padding: nil)
         }
@@ -295,10 +315,27 @@ struct ItemFormView: View {
             item = existing
         }
         await draft.apply(to: item)
+        updatePieceLog(of: item)
         try? modelContext.save()
         isSaving = false
         onSave(item)
         dismiss()
+    }
+
+    /// Identical pieces: turning the switch on starts the log with one
+    /// purchase (how many, price, date); turning it off (only possible with a
+    /// single entry) goes back to a normal item.
+    private func updatePieceLog(of item: Item) {
+        let events = item.pieceEvents ?? []
+        if item.isMultiPiece && events.isEmpty {
+            let first = PieceEvent(kind: .bought, quantity: draft.pieceCount, date: item.purchaseDate,
+                                   priceCents: item.purchasePriceCents)
+            modelContext.insert(first)
+            first.item = item
+        } else if !item.isMultiPiece && events.count == 1 {
+            modelContext.delete(events[0])
+        }
+        item.syncFromPieceEvents()
     }
 }
 

@@ -41,7 +41,7 @@ struct MarkSoldView: View {
                         .font(.rowTitle)
                         .foregroundStyle(.textPrimary)
                         .lineLimit(1)
-                    Text("Bought \(Money.format(cents: item.purchasePriceCents)) · \(current.wearCount.formatted()) wears")
+                    Text("Cost \(Money.format(cents: current.totalCostCents)) · \(current.wearCount.formatted()) wears")
                         .font(.rowDetail)
                         .foregroundStyle(.textSecondary)
                 }

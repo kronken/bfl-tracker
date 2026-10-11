@@ -122,6 +122,27 @@ enum DemoData {
             context.insert(item)
             drivers.append(item)
         }
+        // Repairs on the boots.
+        for (name, details, when, price) in [("Resole", "Vibram 430 mini-lug sole and new heel", date(2024, 11, 12), 120),
+                                             ("New laces", "Original leather laces", date(2023, 3, 3), 12)] {
+            let repair = Repair(name: name, details: details, date: when, priceCents: price * 100)
+            context.insert(repair)
+            repair.item = owned[0]
+        }
+        // Identical pieces: a set of boxers.
+        let boxers = Item(name: "Cotton boxers", category: .underwear, purchaseDate: date(2023, 1, 14),
+                          purchasePriceCents: 0, priorWearCount: 600)
+        boxers.isMultiPiece = true
+        boxers.tintHex = "#1D1F26"
+        context.insert(boxers)
+        for event in [PieceEvent(kind: .bought, quantity: 5, date: date(2023, 1, 14), priceCents: 15_000),
+                      PieceEvent(kind: .bought, quantity: 2, date: date(2024, 9, 2), priceCents: 6_400),
+                      PieceEvent(kind: .retired, quantity: 1, date: date(2026, 6, 18), reason: "Worn out")] {
+            context.insert(event)
+            event.item = boxers
+        }
+        boxers.syncFromPieceEvents()
+
         // Not worn since it was added over a year ago: a sell suggestion.
         let chinos = Item(name: "Stone chinos", category: .bottoms, purchaseDate: date(2023, 5), purchasePriceCents: 9_500,
                           priorWearCount: 12, minTempC: 5, maxTempC: 28)

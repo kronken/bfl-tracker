@@ -54,6 +54,14 @@ struct ItemDraft: Equatable {
     var isFavorite = false
     var isDailyDriver = false
     var isInactive = false
+    /// One item for several identical pieces (socks, boxers).
+    var isMultiPiece = false
+    /// Pieces in the first purchase when the switch is turned on.
+    var pieceCount = 5
+    /// The item already keeps a pieces log: price and date are managed there.
+    var hasPieceLog = false
+    /// More than one log entry: the switch can no longer be turned off.
+    var pieceLogLocked = false
     var category: ItemCategory?
     var minTempC = -30
     var maxTempC = 35
@@ -80,6 +88,10 @@ struct ItemDraft: Equatable {
         isFavorite = item.isFavorite
         isDailyDriver = item.isDailyDriver
         isInactive = item.isInactive
+        isMultiPiece = item.isMultiPiece
+        let events = item.pieceEvents ?? []
+        hasPieceLog = item.isMultiPiece && !events.isEmpty
+        pieceLogLocked = item.isMultiPiece && events.count > 1
         category = item.category
         minTempC = item.minTempC
         maxTempC = item.maxTempC
@@ -126,6 +138,7 @@ struct ItemDraft: Equatable {
         item.isFavorite = isFavorite
         item.isDailyDriver = isDailyDriver
         item.isInactive = isInactive
+        item.isMultiPiece = isMultiPiece
         item.category = category ?? .other
         item.minTempC = minTempC
         item.maxTempC = maxTempC

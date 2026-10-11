@@ -124,7 +124,7 @@ struct WardrobeView: View {
     private var summary: String {
         switch shelf {
         case .owned:
-            "\(Money.format(cents: owned.reduce(0) { $0 + $1.purchasePriceCents })) in what you own"
+            "\(Money.format(cents: owned.reduce(0) { $0 + $1.stats.totalCostCents })) in what you own"
         case .toSell:
             settings.sellSuggestionMonths == 12
                 ? "Unworn for a year or more"
@@ -258,6 +258,9 @@ struct WardrobeCard: View {
                         PhotoTag(text: "SECOND-HAND").padding(8)
                     }
                 }
+                .overlay(alignment: .bottomLeading) {
+                    if item.isMultiPiece && !item.isSold { PieceCountBadge(count: item.piecesInUse).padding(8) }
+                }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.name)
@@ -300,9 +303,12 @@ struct WardrobeCard: View {
             return "Sold \(price) · \(soldDate.formatted(.dateTime.month(.abbreviated).year()))"
         }
         let wears = stats.wearCount == 1 ? "1 wear" : "\(stats.wearCount.formatted()) wears"
+        if item.isMultiPiece {
+            return item.piecesInUse == 0 ? "All retired · \(wears)" : "\(item.piecesInUse) in use · \(wears)"
+        }
         if item.isInactive { return "Inactive · \(wears)" }
         if item.isDailyDriver { return "Daily driver · \(wears)" }
-        return "\(wears) · \(Money.format(cents: item.purchasePriceCents))"
+        return "\(wears) · \(Money.format(cents: stats.totalCostCents))"
     }
 }
 
@@ -385,7 +391,7 @@ struct SellSuggestionRow: View {
     private func meta(_ stats: ItemStats) -> String {
         var parts = [stats.wearCount == 1 ? "1 wear" : "\(stats.wearCount) wears"]
         if let cpw = stats.costPerWearCents { parts.append("\(Money.format(fractionalCents: cpw)) / wear") }
-        parts.append("paid \(Money.format(cents: item.purchasePriceCents))")
+        parts.append("paid \(Money.format(cents: stats.totalCostCents))")
         return parts.joined(separator: " · ")
     }
 }

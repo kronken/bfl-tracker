@@ -48,7 +48,8 @@ struct InsightsView: View {
     private func totals(_ wardrobe: WardrobeStats) -> some View {
         let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
         return LazyVGrid(columns: columns, spacing: 12) {
-            TotalTile(label: "Total spent", value: Money.format(cents: wardrobe.totalSpentCents))
+            TotalTile(label: "Total spent", value: Money.format(cents: wardrobe.totalSpentCents),
+                      detail: wardrobe.repairsCents > 0 ? "incl. \(Money.format(cents: wardrobe.repairsCents)) repairs" : nil)
             TotalTile(label: "Back from sales", value: Money.format(cents: wardrobe.backFromSalesCents))
             TotalTile(label: "Total wears", value: wardrobe.wearCount.formatted())
             TotalTile(label: "Avg cost / wear",
@@ -247,6 +248,7 @@ private extension String {
 private struct TotalTile: View {
     var label: String
     var value: String
+    var detail: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -261,6 +263,13 @@ private struct TotalTile: View {
                 .foregroundStyle(.textPrimary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
+            if let detail {
+                Text(detail)
+                    .font(.footnote)
+                    .foregroundStyle(.textSecondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
@@ -351,7 +360,7 @@ private struct RankingRow: View {
                     .font(.rowTitle)
                     .foregroundStyle(.textPrimary)
                     .lineLimit(1)
-                Text("\(stats.wearCount == 1 ? "1 wear" : "\(stats.wearCount) wears") · \(Money.format(cents: item.purchasePriceCents))")
+                Text("\(stats.wearCount == 1 ? "1 wear" : "\(stats.wearCount) wears") · \(Money.format(cents: stats.totalCostCents))")
                     .font(.rowDetail)
                     .foregroundStyle(.textSecondary)
                     .monospacedDigit()

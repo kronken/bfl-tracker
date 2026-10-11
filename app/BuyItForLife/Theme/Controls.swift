@@ -214,3 +214,146 @@ extension Binding where Value == Int {
         )
     }
 }
+
+// MARK: - Sheets
+
+/// −  value  + with bounds, e.g. "How many".
+struct CountStepper: View {
+    @Binding var value: Int
+    var range: ClosedRange<Int>
+    var label: String
+
+    var body: some View {
+        HStack(spacing: 4) {
+            step("minus", enabled: value > range.lowerBound) { value -= 1 }
+            Text("\(value)")
+                .font(.number(.title3))
+                .foregroundStyle(.textPrimary)
+                .contentTransition(.numericText())
+                .frame(minWidth: 36)
+            step("plus", enabled: value < range.upperBound) { value += 1 }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityValue("\(value)")
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment: if value < range.upperBound { value += 1 }
+            case .decrement: if value > range.lowerBound { value -= 1 }
+            @unknown default: break
+            }
+        }
+    }
+
+    private func step(_ symbol: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+        Button {
+            withAnimation(.snappy(duration: 0.2)) { action() }
+        } label: {
+            Image(systemName: symbol)
+                .font(.system(size: 17, weight: .medium))
+                .frame(width: 44, height: 44)
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(enabled ? .textPrimary : .textTertiary)
+        .disabled(!enabled)
+    }
+}
+
+/// The item a sheet is about: thumbnail, name and a short summary.
+struct SheetContextRow: View {
+    let item: Item
+    var summary: String
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ItemImageView(content: item.thumbnailContent, cornerRadius: Radius.thumb, iconSize: 22)
+                .frame(width: 48, height: 48)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.name)
+                    .font(.rowTitle)
+                    .foregroundStyle(.textPrimary)
+                    .lineLimit(1)
+                Text(summary)
+                    .font(.rowDetail)
+                    .foregroundStyle(.textSecondary)
+                    .monospacedDigit()
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+}
+
+/// "AFTER THIS": two or three figures that update as the user types.
+struct AfterThisCard: View {
+    var title: String
+    var figures: [(value: String, label: String)]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title.uppercased())
+                .font(.label)
+                .tracking(0.3)
+                .foregroundStyle(.textSecondary)
+            HStack(alignment: .top, spacing: 8) {
+                ForEach(figures.indices, id: \.self) { index in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(figures[index].value)
+                            .font(.number(.title3))
+                            .foregroundStyle(.textPrimary)
+                            .contentTransition(.numericText())
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                        Text(figures[index].label)
+                            .font(.footnote)
+                            .foregroundStyle(.textSecondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        }
+        .card()
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Cancel / title / Save sheet scaffold used by the repair and pieces sheets.
+struct EditSheet<Content: View>: View {
+    var title: String
+    var canSave: Bool
+    var onSave: () -> Void
+    @ViewBuilder var content: Content
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) { content }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .padding(.bottom, 32)
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .background(.appBackground)
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .tint(.textPrimary)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        onSave()
+                        dismiss()
+                    }
+                    .buttonStyle(.glassProminent)
+                    .disabled(!canSave)
+                }
+            }
+        }
+        .presentationBackground(.appBackground)
+    }
+}
