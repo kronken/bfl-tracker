@@ -1,11 +1,11 @@
 import SwiftData
 import SwiftUI
 
-/// First-launch flow: what the app does, where the forecast comes from, and
-/// the first item.
+/// First-launch flow: what the app does, where the forecast comes from,
+/// optional buy-less goals, and the first item.
 struct OnboardingView: View {
     enum Step: Int, CaseIterable {
-        case welcome, city, firstItem, done
+        case welcome, city, goals, firstItem, done
     }
 
     var onFinish: () -> Void
@@ -16,6 +16,9 @@ struct OnboardingView: View {
     @State private var step: Step = .welcome
     @State private var lastAdded: Item?
     @State private var itemFormID = UUID()
+    /// The goals step's choices, kept while going back and forth.
+    @State private var buyLessOn = false
+    @State private var goalDays = AppSettings.defaultNoBuyGoalDays
 
     var body: some View {
         VStack(spacing: 0) {
@@ -25,7 +28,13 @@ struct OnboardingView: View {
                 case .welcome:
                     WelcomeStep { go(to: .city) }
                 case .city:
-                    CityChoiceView { go(to: .firstItem) }
+                    CityChoiceView { go(to: .goals) }
+                case .goals:
+                    GoalsStep(isOn: $buyLessOn, goalDays: $goalDays) {
+                        settings.buyLessEnabled = buyLessOn
+                        if buyLessOn { settings.noBuyGoalDays = goalDays }
+                        go(to: .firstItem)
+                    }
                 case .firstItem:
                     FirstItemStep { item in
                         lastAdded = item
@@ -46,12 +55,13 @@ struct OnboardingView: View {
         }
         .background(.appBackground)
         #if DEBUG
-        // `-onboardingStep 0…3` with `-forceOnboarding YES`, for screenshots.
+        // `-onboardingStep 0…4` (and `-onboardingGoalsOn YES`) with `-forceOnboarding YES`, for screenshots.
         .onAppear {
             if let raw = UserDefaults.standard.object(forKey: "onboardingStep") as? String,
                let index = Int(raw), let debugStep = Step(rawValue: index) {
                 step = debugStep
                 lastAdded = items.first
+                buyLessOn = UserDefaults.standard.bool(forKey: "onboardingGoalsOn")
             }
         }
         #endif
@@ -74,7 +84,7 @@ struct OnboardingView: View {
             .accessibilityElement()
             .accessibilityLabel("Step \(step.rawValue + 1) of \(Step.allCases.count)")
             HStack {
-                if step == .city || step == .firstItem {
+                if step == .city || step == .goals || step == .firstItem {
                     GlassIconButton(systemImage: "chevron.left", accessibilityLabel: "Back") {
                         go(to: Step(rawValue: step.rawValue - 1) ?? .welcome)
                     }
@@ -205,6 +215,107 @@ private struct WelcomeStep: View {
                     .foregroundStyle(.textSecondary)
             }
         }
+    }
+}
+
+// MARK: - Buy-less goals
+
+/// Optional: turn on buy-less goals and pick a first streak goal.
+private struct GoalsStep: View {
+    @Binding var isOn: Bool
+    @Binding var goalDays: Int
+    var onContinue: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Buy less, too?")
+                            .font(.screenTitle)
+                            .foregroundStyle(.textPrimary)
+                        Text("An optional extra for when buying less is part of the point.")
+                            .font(.body)
+                            .foregroundStyle(.textSecondary)
+                    }
+                    .padding(.horizontal, 4)
+                    card
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
+            }
+            .scrollIndicators(.hidden)
+            VStack(spacing: 10) {
+                Button("Continue", action: onContinue)
+                    .buttonStyle(.primary)
+                Text("You can change this any time in Settings.")
+                    .font(.footnote)
+                    .foregroundStyle(.textSecondary)
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 16)
+        }
+    }
+
+    private var card: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 14) {
+                Toggle(isOn: Binding(get: { isOn }, set: { newValue in withAnimation(.snappy) { isOn = newValue } })) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "cart.badge.minus")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(.textPrimary)
+                            .frame(width: 32, height: 32)
+                            .background(.surfaceRaised, in: .rect(cornerRadius: Radius.thumb))
+                        Text("Buy-less goals")
+                            .font(.rowTitle)
+                            .foregroundStyle(.textPrimary)
+                    }
+                }
+                .tint(.positive)
+                .accessibilityLabel("Buy-less goals")
+                VStack(alignment: .leading, spacing: 8) {
+                    point("clock", "Count the days since you last bought something")
+                    point("creditcard", "Set a monthly limit and a yearly budget")
+                    point("chart.line.uptrend.xyaxis", "See your streak and progress on Insights")
+                }
+            }
+            .padding(16)
+
+            if isOn {
+                RowDivider()
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("FIRST GOAL: DAYS WITHOUT BUYING")
+                        .font(.label)
+                        .tracking(0.3)
+                        .foregroundStyle(.textSecondary)
+                    HStack(spacing: 8) {
+                        ForEach(SettingsView.goalOptions, id: \.self) { days in
+                            Chip(title: "\(days) d", isOn: goalDays == days) { goalDays = days }
+                                .frame(maxWidth: .infinity)
+                                .accessibilityLabel("\(days) days")
+                        }
+                    }
+                    Text("Set the limit and budget later in Settings.")
+                        .font(.footnote)
+                        .foregroundStyle(.textSecondary)
+                }
+                .padding(16)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .card(padding: nil)
+    }
+
+    private func point(_ symbol: String, _ text: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Image(systemName: symbol)
+                .font(.system(size: 13, weight: .medium))
+                .frame(width: 18)
+            Text(text)
+        }
+        .font(.rowDetail)
+        .foregroundStyle(.textSecondary)
     }
 }
 
