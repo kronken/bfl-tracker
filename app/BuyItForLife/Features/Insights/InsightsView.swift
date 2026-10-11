@@ -5,7 +5,7 @@ struct InsightsView: View {
     @Environment(AppSettings.self) private var settings
     @Query(sort: \Item.purchaseDate) private var items: [Item]
 
-    @State private var cumulativeSpend = false
+    @State private var spendMode: SpendPerYearCard.Mode = .yearly
     @State private var bestFirst = true
 
     /// Items without a logged wear for this long get the "Unworn" tag.
@@ -23,12 +23,16 @@ struct InsightsView: View {
                     totals(wardrobe)
                     // Feel-good mode leaves the spending chart out entirely.
                     if !settings.hidesTotals {
-                        SpendPerYearCard(points: wardrobe.spendPerYear(), cumulative: $cumulativeSpend)
+                        SpendPerYearCard(points: wardrobe.spendPerYear(), months: wardrobe.spendPerMonth(), mode: $spendMode)
                     }
                     ranking
                 }
             }
             .navigationTitle("Insights")
+            #if DEBUG
+            // `-spendMode monthly` opens the chart on Monthly, for screenshots.
+            .onAppear { if UserDefaults.standard.string(forKey: "spendMode") == "monthly" { spendMode = .monthly } }
+            #endif
             .navigationDestination(for: Item.self) { item in
                 ItemDetailView(item: item)
             }
@@ -310,57 +314,96 @@ private struct TotalTile: View {
 
 /// Purchases per year, or the running total.
 struct SpendPerYearCard: View {
+    enum Mode: Hashable { case monthly, yearly, total }
+
     var points: [YearPoint]
-    @Binding var cumulative: Bool
+    var months: [MonthSpend]
+    @Binding var mode: Mode
 
     private let barAreaHeight: CGFloat = 110
 
     var body: some View {
-        let values = shownValues
-        let peak = values.max() ?? 0
+        let bars = shownBars
+        let peak = bars.map(\.cents).max() ?? 0
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text("Spent per year")
+                Text(mode == .monthly ? "Spent per month" : "Spent per year")
                     .font(.rowTitle)
                     .foregroundStyle(.textPrimary)
                 Spacer()
-                SegmentedControl(options: [(false, "Yearly"), (true, "Total")], selection: $cumulative)
-                    .frame(width: 150)
             }
-            HStack(alignment: .bottom, spacing: 8) {
-                ForEach(Array(values.enumerated()), id: \.offset) { _, value in
+            SegmentedControl(options: [(Mode.monthly, "Monthly"), (Mode.yearly, "Yearly"), (Mode.total, "Total")],
+                             selection: $mode)
+            HStack(alignment: .bottom, spacing: mode == .monthly ? 4 : 8) {
+                ForEach(Array(bars.enumerated()), id: \.offset) { _, bar in
                     VStack(spacing: 4) {
-                        Text(Self.compact(value))
-                            .font(.number(.caption))
-                            .foregroundStyle(.textSecondary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(.dataBlue)
-                            .frame(height: peak > 0 ? max(4, barAreaHeight * CGFloat(value / peak)) : 4)
+                        // Twelve bars are too narrow for amounts; the caption sums them up.
+                        if mode != .monthly {
+                            Text(Self.compact(bar.cents))
+                                .font(.number(.caption))
+                                .foregroundStyle(.textSecondary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                        }
+                        RoundedRectangle(cornerRadius: mode == .monthly ? 4 : 6)
+                            .fill(bar.cents > 0 ? AnyShapeStyle(.dataBlue) : AnyShapeStyle(.surfaceRaised))
+                            .frame(height: peak > 0 ? max(4, barAreaHeight * CGFloat(bar.cents / peak)) : 4)
                     }
                     .frame(maxWidth: .infinity)
                 }
             }
             .frame(height: barAreaHeight + 24, alignment: .bottom)
-            HStack(spacing: 8) {
-                ForEach(Array(points.enumerated()), id: \.offset) { index, point in
-                    Text(index == 0 ? String(point.year) : "’" + String(point.year % 100).leftPadded(to: 2))
+            HStack(spacing: mode == .monthly ? 4 : 8) {
+                ForEach(Array(bars.enumerated()), id: \.offset) { _, bar in
+                    Text(bar.label)
                         .frame(maxWidth: .infinity)
                 }
             }
             .font(.label)
             .foregroundStyle(.textSecondary)
             .padding(.top, -8)
+            if mode == .monthly {
+                Text(monthlyCaption)
+                    .font(.rowDetail)
+                    .foregroundStyle(.textSecondary)
+            }
         }
         .card()
-        .accessibilityElement(children: .contain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(mode == .monthly ? "Spent per month, last 12 months" : "Spent per year")
+        .accessibilityValue(bars.map { "\($0.spokenLabel): \(Money.format(cents: Int($0.cents.rounded())))" }
+            .joined(separator: ", "))
     }
 
-    private var shownValues: [Double] {
-        guard cumulative else { return points.map(\.cents) }
-        var running = 0.0
-        return points.map { running += $0.cents; return running }
+    private struct Bar {
+        var label: String
+        var spokenLabel: String
+        var cents: Double
+    }
+
+    private var shownBars: [Bar] {
+        switch mode {
+        case .monthly:
+            return months.map {
+                Bar(label: $0.monthStart.formatted(.dateTime.month(.narrow)),
+                    spokenLabel: $0.monthStart.formatted(.dateTime.month(.wide).year()), cents: $0.cents)
+            }
+        case .yearly, .total:
+            var running = 0.0
+            return points.enumerated().map { index, point in
+                running += point.cents
+                let label = index == 0 ? String(point.year) : "’" + String(point.year % 100).leftPadded(to: 2)
+                return Bar(label: label, spokenLabel: String(point.year), cents: mode == .total ? running : point.cents)
+            }
+        }
+    }
+
+    private var monthlyCaption: String {
+        let total = months.reduce(0) { $0 + $1.cents }
+        guard total > 0, let top = months.max(by: { $0.cents < $1.cents }) else {
+            return "Nothing bought or repaired in the last 12 months."
+        }
+        return "Last 12 months: \(Money.format(cents: Int(total.rounded()))). Most in \(top.monthStart.formatted(.dateTime.month(.wide))): \(Money.format(cents: Int(top.cents.rounded())))."
     }
 
     /// "€629" / "629 €", and "$1.3K" / "1,3K €": the number is shortened but

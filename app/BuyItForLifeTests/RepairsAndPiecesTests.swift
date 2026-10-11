@@ -46,6 +46,15 @@ struct RepairPriceTests {
         #expect(wardrobe.repairsCents == 13_200)
     }
 
+    @Test func spendPerMonthCoversTwelveMonthsWithRepairsInTheirMonth() {
+        let wardrobe = WardrobeStats(items: [boots])
+        let months = wardrobe.spendPerMonth(now: date(2025, 10, 11), calendar: calendar)
+        #expect(months.count == 12)
+        #expect(DayKey.make(for: months.first!.monthStart, calendar: calendar) == "2024-11-01")
+        #expect(months.first!.cents == 12_000) // the resole in Nov 2024
+        #expect(months.dropFirst().allSatisfy { $0.cents == 0 })
+    }
+
     @Test func costPerDayOnlyIncludesRepairsMadeByThen() {
         let wardrobe = WardrobeStats(items: [boots])
         let before = wardrobe.costPerDayCents(asOf: date(2022, 12, 31), calendar: calendar)!

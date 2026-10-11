@@ -143,6 +143,14 @@ enum DemoData {
         }
         boxers.syncFromPieceEvents()
 
+        // Recent purchases, so the monthly spend chart has something to show.
+        for (name, category, monthsAgo, price) in [("Merino tee", ItemCategory.tops, 2, 85), ("Wool beanie", .headwear, 5, 45)] {
+            let recent = Item(name: name, category: category,
+                              purchaseDate: Calendar.current.date(byAdding: .month, value: -monthsAgo, to: .now)!,
+                              purchasePriceCents: price * 100, priorWearCount: 10, minTempC: -20, maxTempC: 20)
+            context.insert(recent)
+        }
+
         // Not worn since it was added over a year ago: a sell suggestion.
         let chinos = Item(name: "Stone chinos", category: .bottoms, purchaseDate: date(2023, 5), purchasePriceCents: 9_500,
                           priorWearCount: 12, minTempC: 5, maxTempC: 28)

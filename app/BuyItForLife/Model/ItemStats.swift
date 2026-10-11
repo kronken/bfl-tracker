@@ -181,6 +181,28 @@ nonisolated struct WardrobeStats: Equatable, Sendable {
     }
 }
 
+nonisolated extension WardrobeStats {
+    /// Money spent (purchases and repairs, each on its own date) in each of
+    /// the last `months` calendar months, oldest first, ending with this month.
+    func spendPerMonth(months: Int = 12, now: Date = .now, calendar: Calendar = .current) -> [MonthSpend] {
+        let thisMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now)) ?? now
+        let starts = (0..<months).reversed().compactMap { calendar.date(byAdding: .month, value: -$0, to: thisMonth) }
+        var totals: [Date: Int] = [:]
+        for item in items {
+            for cost in item.costTimeline {
+                guard let month = calendar.date(from: calendar.dateComponents([.year, .month], from: cost.date)) else { continue }
+                totals[month, default: 0] += cost.cents
+            }
+        }
+        return starts.map { MonthSpend(monthStart: $0, cents: Double(totals[$0] ?? 0)) }
+    }
+}
+
+nonisolated struct MonthSpend: Equatable, Sendable {
+    var monthStart: Date
+    var cents: Double
+}
+
 nonisolated struct YearPoint: Equatable, Sendable {
     var year: Int
     /// The last point is "now" rather than the end of the year.

@@ -28,7 +28,7 @@ final class AppSettings {
 
     /// `AppSettings.currentLocation` or a city ID like "fi.helsinki"; nil until chosen.
     var weatherLocation: String? {
-        didSet { store.set(weatherLocation, forKey: Key.weatherLocation) }
+        didSet { if !isApplyingDebugOverrides { store.set(weatherLocation, forKey: Key.weatherLocation) } }
     }
 
     var paidOffTargetCents: Int {
@@ -47,7 +47,7 @@ final class AppSettings {
     /// Feel-good mode: hides big money totals (total spent, back from sales,
     /// wardrobe value, yearly spend). Display only; nothing is recalculated.
     var feelGoodMode: Bool {
-        didSet { store.set(feelGoodMode, forKey: Key.feelGoodMode) }
+        didSet { if !isApplyingDebugOverrides { store.set(feelGoodMode, forKey: Key.feelGoodMode) } }
     }
 
     /// The one place screens ask whether to hide money totals.
@@ -64,6 +64,8 @@ final class AppSettings {
     }
 
     @ObservationIgnored private let local: UserDefaults
+    /// While true, changes aren't written to storage (debug launch overrides).
+    @ObservationIgnored private var isApplyingDebugOverrides = false
 
     init(store: NSUbiquitousKeyValueStore = .default, local: UserDefaults = .standard) {
         self.store = store
@@ -79,12 +81,17 @@ final class AppSettings {
         reminderEnabled = local.bool(forKey: Key.reminderEnabled)
         reminderMinutes = local.object(forKey: Key.reminderMinutes) as? Int ?? Self.defaultReminderMinutes
         #if DEBUG
-        // `-debugWeatherLocation fi.helsinki` for screenshots; never saved.
+        // Launch arguments for screenshots. They change what this run shows,
+        // never what's stored: `-debugWeatherLocation fi.helsinki`,
+        // `-debugFeelGood YES|NO`.
+        isApplyingDebugOverrides = true
         if let override = UserDefaults.standard.string(forKey: "debugWeatherLocation") {
             weatherLocation = override
         }
-        // `-debugFeelGood YES` turns feel-good mode on for screenshots; never saved.
-        if UserDefaults.standard.bool(forKey: "debugFeelGood") { feelGoodMode = true }
+        if UserDefaults.standard.object(forKey: "debugFeelGood") != nil {
+            feelGoodMode = UserDefaults.standard.bool(forKey: "debugFeelGood")
+        }
+        isApplyingDebugOverrides = false
         #endif
 
         observer = NotificationCenter.default.addObserver(
