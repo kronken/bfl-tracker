@@ -15,6 +15,16 @@ struct InsightsView: View {
         NavigationStack {
             TabScreen {
                 ScreenHeader(subtitle: items.isEmpty ? nil : subtitle, title: "Insights")
+                if settings.buyLessEnabled {
+                    BuyLessCard(
+                        stats: BuyLessStats(purchases: items.flatMap(\.purchases),
+                                            enabledDate: settings.buyLessEnabledDate ?? .now),
+                        goalDays: settings.noBuyGoalDays,
+                        monthlyLimitCents: settings.monthlyLimitCents,
+                        yearlyBudgetCents: settings.yearlyBudgetCents,
+                        hidesTotals: settings.hidesTotals
+                    )
+                }
                 if items.isEmpty {
                     PlaceholderCard(text: "Add items in Wardrobe to see what your clothes cost per day and per wear.")
                 } else {

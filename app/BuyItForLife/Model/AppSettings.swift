@@ -15,6 +15,11 @@ final class AppSettings {
         static let onboardingCompleted = "onboardingCompleted"
         static let sellSuggestionMonths = "sellSuggestionMonths"
         static let feelGoodMode = "feelGoodMode"
+        static let buyLessEnabled = "buyLessEnabled"
+        static let buyLessEnabledDate = "buyLessEnabledDate"
+        static let noBuyGoalDays = "noBuyGoalDays"
+        static let monthlyLimitCents = "monthlyLimitCents"
+        static let yearlyBudgetCents = "yearlyBudgetCents"
         // Kept on this device only: notifications and their permission are per device.
         static let reminderEnabled = "reminderEnabled"
         static let reminderMinutes = "reminderMinutes"
@@ -50,6 +55,40 @@ final class AppSettings {
         didSet { if !isApplyingDebugOverrides { store.set(feelGoodMode, forKey: Key.feelGoodMode) } }
     }
 
+    // Buy-less goals. Money is kept in whole cents like everywhere else.
+    var buyLessEnabled: Bool {
+        didSet {
+            guard !isApplyingDebugOverrides else { return }
+            store.set(buyLessEnabled, forKey: Key.buyLessEnabled)
+            if buyLessEnabled && buyLessEnabledDate == nil { buyLessEnabledDate = .now }
+        }
+    }
+
+    /// When buy-less goals were first turned on: the streak start if nothing
+    /// has been bought.
+    var buyLessEnabledDate: Date? {
+        didSet {
+            guard !isApplyingDebugOverrides else { return }
+            store.set(buyLessEnabledDate?.timeIntervalSince1970, forKey: Key.buyLessEnabledDate)
+        }
+    }
+
+    var noBuyGoalDays: Int {
+        didSet { store.set(Int64(noBuyGoalDays), forKey: Key.noBuyGoalDays) }
+    }
+
+    var monthlyLimitCents: Int {
+        didSet { store.set(Int64(monthlyLimitCents), forKey: Key.monthlyLimitCents) }
+    }
+
+    var yearlyBudgetCents: Int {
+        didSet { store.set(Int64(yearlyBudgetCents), forKey: Key.yearlyBudgetCents) }
+    }
+
+    static let defaultNoBuyGoalDays = 90
+    static let defaultMonthlyLimitCents = 5_000
+    static let defaultYearlyBudgetCents = 30_000
+
     /// The one place screens ask whether to hide money totals.
     var hidesTotals: Bool { feelGoodMode }
 
@@ -78,6 +117,14 @@ final class AppSettings {
         let months = Int(store.longLong(forKey: Key.sellSuggestionMonths))
         sellSuggestionMonths = months > 0 ? months : Self.defaultSellSuggestionMonths
         feelGoodMode = store.bool(forKey: Key.feelGoodMode)
+        buyLessEnabled = store.bool(forKey: Key.buyLessEnabled)
+        buyLessEnabledDate = (store.object(forKey: Key.buyLessEnabledDate) as? Double).map(Date.init(timeIntervalSince1970:))
+        let goal = Int(store.longLong(forKey: Key.noBuyGoalDays))
+        noBuyGoalDays = goal > 0 ? goal : Self.defaultNoBuyGoalDays
+        monthlyLimitCents = store.object(forKey: Key.monthlyLimitCents) == nil
+            ? Self.defaultMonthlyLimitCents : Int(store.longLong(forKey: Key.monthlyLimitCents))
+        yearlyBudgetCents = store.object(forKey: Key.yearlyBudgetCents) == nil
+            ? Self.defaultYearlyBudgetCents : Int(store.longLong(forKey: Key.yearlyBudgetCents))
         reminderEnabled = local.bool(forKey: Key.reminderEnabled)
         reminderMinutes = local.object(forKey: Key.reminderMinutes) as? Int ?? Self.defaultReminderMinutes
         #if DEBUG
@@ -90,6 +137,11 @@ final class AppSettings {
         }
         if UserDefaults.standard.object(forKey: "debugFeelGood") != nil {
             feelGoodMode = UserDefaults.standard.bool(forKey: "debugFeelGood")
+        }
+        // `-debugBuyLess YES` shows buy-less goals for this run.
+        if UserDefaults.standard.object(forKey: "debugBuyLess") != nil {
+            buyLessEnabled = UserDefaults.standard.bool(forKey: "debugBuyLess")
+            if buyLessEnabledDate == nil { buyLessEnabledDate = Calendar.current.date(byAdding: .day, value: -20, to: .now) }
         }
         isApplyingDebugOverrides = false
         #endif
@@ -112,5 +164,13 @@ final class AppSettings {
         let months = Int(store.longLong(forKey: Key.sellSuggestionMonths))
         sellSuggestionMonths = months > 0 ? months : Self.defaultSellSuggestionMonths
         feelGoodMode = store.bool(forKey: Key.feelGoodMode)
+        buyLessEnabled = store.bool(forKey: Key.buyLessEnabled)
+        buyLessEnabledDate = (store.object(forKey: Key.buyLessEnabledDate) as? Double).map(Date.init(timeIntervalSince1970:))
+        let goal = Int(store.longLong(forKey: Key.noBuyGoalDays))
+        noBuyGoalDays = goal > 0 ? goal : Self.defaultNoBuyGoalDays
+        monthlyLimitCents = store.object(forKey: Key.monthlyLimitCents) == nil
+            ? Self.defaultMonthlyLimitCents : Int(store.longLong(forKey: Key.monthlyLimitCents))
+        yearlyBudgetCents = store.object(forKey: Key.yearlyBudgetCents) == nil
+            ? Self.defaultYearlyBudgetCents : Int(store.longLong(forKey: Key.yearlyBudgetCents))
     }
 }

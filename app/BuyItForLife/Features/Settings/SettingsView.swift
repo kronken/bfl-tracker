@@ -26,6 +26,7 @@ struct SettingsView: View {
                 reminderSection
                 paidOffSection
                 sellSection
+                buyLessSection
                 displaySection
                 Text("Buy It For Life · version \(Self.version)")
                     .font(.footnote)
@@ -365,6 +366,100 @@ struct SettingsView: View {
                 .foregroundStyle(.textSecondary)
                 .padding(.horizontal, 4)
         }
+    }
+
+    // MARK: Buy less
+
+    static let goalOptions = [30, 90, 180, 365]
+
+    private var buyLessSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel("Buy less")
+            VStack(spacing: 0) {
+                Toggle(isOn: Binding(get: { settings.buyLessEnabled },
+                                     set: { newValue in withAnimation(.snappy) { settings.buyLessEnabled = newValue } })) {
+                    HStack(spacing: 12) {
+                        iconTile("cart.badge.minus")
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Buy-less goals")
+                                .font(.body)
+                                .foregroundStyle(.textPrimary)
+                            Text("Count days without buying, set limits")
+                                .font(.footnote)
+                                .foregroundStyle(.textSecondary)
+                        }
+                    }
+                }
+                .tint(.positive)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .frame(minHeight: 64)
+
+                if settings.buyLessEnabled {
+                    RowDivider()
+                    VStack(alignment: .leading, spacing: 10) {
+                        settingTitle("Days without buying", detail: "Your streak goal")
+                        HStack(spacing: 8) {
+                            ForEach(Self.goalOptions, id: \.self) { days in
+                                Chip(title: "\(days) d", isOn: settings.noBuyGoalDays == days) {
+                                    settings.noBuyGoalDays = days
+                                }
+                                .frame(maxWidth: .infinity)
+                            }
+                        }
+                    }
+                    .padding(16)
+                    RowDivider()
+                    moneyStepper("Monthly limit", detail: "Most you want to spend in a month",
+                                 cents: settings.monthlyLimitCents, step: 1_000) { settings.monthlyLimitCents = $0 }
+                    RowDivider()
+                    moneyStepper("Yearly budget", detail: "For the calendar year",
+                                 cents: settings.yearlyBudgetCents, step: 5_000) { settings.yearlyBudgetCents = $0 }
+                }
+            }
+            .card(padding: nil)
+            Text(settings.buyLessEnabled
+                 ? "Progress shows on Insights. Repairs don’t count as buying: fixing beats replacing."
+                 : "Off. Turn on to track days since your last purchase.")
+                .font(.footnote)
+                .foregroundStyle(.textSecondary)
+                .padding(.horizontal, 4)
+        }
+    }
+
+    private func settingTitle(_ title: String, detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.body)
+                .foregroundStyle(.textPrimary)
+            Text(detail)
+                .font(.footnote)
+                .foregroundStyle(.textSecondary)
+        }
+    }
+
+    private func moneyStepper(_ title: String, detail: String, cents: Int, step: Int,
+                              set: @escaping (Int) -> Void) -> some View {
+        HStack {
+            settingTitle(title, detail: detail)
+            Spacer()
+            HStack(spacing: 0) {
+                stepButton("minus", label: "Lower \(title.lowercased())", enabled: cents > 0) {
+                    withAnimation(.snappy(duration: 0.2)) { set(max(0, cents - step)) }
+                }
+                Text(Money.format(cents: cents))
+                    .font(.number(.body))
+                    .foregroundStyle(.textPrimary)
+                    .contentTransition(.numericText())
+                    .frame(minWidth: 64)
+                stepButton("plus", label: "Raise \(title.lowercased())", enabled: true) {
+                    withAnimation(.snappy(duration: 0.2)) { set(cents + step) }
+                }
+            }
+        }
+        .padding(.leading, 16)
+        .padding(.trailing, 8)
+        .frame(minHeight: 64)
     }
 
     // MARK: Display
