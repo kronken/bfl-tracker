@@ -54,8 +54,11 @@ struct RootView: View {
             // Completed on another device and synced here.
             if settings.onboardingCompleted { showOnboarding = false }
         }
-        .fullScreenCover(isPresented: $showOnboarding) {
-            OnboardingView {
+        .onChange(of: router.replayOnboarding) {
+            if router.replayOnboarding { showOnboarding = true }
+        }
+        .fullScreenCover(isPresented: $showOnboarding, onDismiss: { router.replayOnboarding = false }) {
+            OnboardingView(isReplay: router.replayOnboarding) {
                 router.tab = .today
                 showOnboarding = false
             }

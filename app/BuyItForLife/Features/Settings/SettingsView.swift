@@ -8,6 +8,8 @@ struct SettingsView: View {
     @Query private var items: [Item]
 
     @State private var reminderProblem: String?
+    @State private var versionTaps: [Date] = []
+    @State private var showDebug = false
 
     @State private var cityListOpen = false
     @State private var isLocating = false
@@ -31,10 +33,21 @@ struct SettingsView: View {
                 Text("Buy It For Life · version \(Self.version)")
                     .font(.footnote)
                     .foregroundStyle(.textSecondary)
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .contentShape(.rect)
+                    .onTapGesture(perform: versionTapped)
+                    .accessibilityAddTraits(.isStaticText)
             }
             .padding(.top, 8)
         }
+        .sheet(isPresented: $showDebug) { DebugView() }
+        #if DEBUG
+        // `-openDebugScreen YES` / `-replayOnboarding YES` on launch, for screenshots.
+        .onAppear {
+            if UserDefaults.standard.bool(forKey: "openDebugScreen") { showDebug = true }
+            if UserDefaults.standard.bool(forKey: "replayOnboarding") { AppRouter.shared.replayOnboarding = true }
+        }
+        #endif
     }
 
     // MARK: Weather
@@ -365,6 +378,18 @@ struct SettingsView: View {
                 .font(.footnote)
                 .foregroundStyle(.textSecondary)
                 .padding(.horizontal, 4)
+        }
+    }
+
+    // MARK: Debug
+
+    /// Seven taps on the version within a few seconds open the debug screen.
+    private func versionTapped() {
+        let now = Date.now
+        versionTaps = versionTaps.filter { now.timeIntervalSince($0) < 3 } + [now]
+        if versionTaps.count >= 7 {
+            versionTaps = []
+            showDebug = true
         }
     }
 

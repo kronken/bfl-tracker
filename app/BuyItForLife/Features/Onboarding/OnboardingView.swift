@@ -8,6 +8,9 @@ struct OnboardingView: View {
         case welcome, city, goals, firstItem, done
     }
 
+    /// Opened from the debug screen: adds a close button, since the normal
+    /// flow only ends by adding an item.
+    var isReplay = false
     var onFinish: () -> Void
 
     @Environment(AppSettings.self) private var settings
@@ -54,6 +57,12 @@ struct OnboardingView: View {
             .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)).combined(with: .opacity))
         }
         .background(.appBackground)
+        .onAppear {
+            // Start from the current settings, so a replay doesn't switch
+            // buy-less goals off. On first launch these are off and 90 days.
+            buyLessOn = settings.buyLessEnabled
+            goalDays = settings.noBuyGoalDays
+        }
         #if DEBUG
         // `-onboardingStep 0…4` (and `-onboardingGoalsOn YES`) with `-forceOnboarding YES`, for screenshots.
         .onAppear {
@@ -90,6 +99,9 @@ struct OnboardingView: View {
                     }
                 }
                 Spacer()
+                if isReplay {
+                    GlassIconButton(systemImage: "xmark", accessibilityLabel: "Close onboarding", action: onFinish)
+                }
             }
         }
         .frame(minHeight: 44)

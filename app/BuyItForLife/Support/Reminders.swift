@@ -64,6 +64,8 @@ final class AppRouter {
     static let shared = AppRouter()
 
     var tab: RootView.TabID = .today
+    /// Set by the debug screen to show onboarding again.
+    var replayOnboarding = false
 }
 
 /// Receives notification taps and shows reminders while the app is open.
