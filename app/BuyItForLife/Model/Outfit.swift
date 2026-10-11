@@ -1,7 +1,6 @@
 import Foundation
 
-/// Today's groups, top to toe. Pick-one groups hold one item a day unless the
-/// user switches them to pick-any ("Wore more?") for that day.
+/// Today's sections, top to toe. Any number of items can be picked in each.
 nonisolated enum OutfitGroup: String, CaseIterable, Identifiable, Sendable {
     case headwear, outerwear, tops, bottoms, footwear, more
 
@@ -15,14 +14,6 @@ nonisolated enum OutfitGroup: String, CaseIterable, Identifiable, Sendable {
         case .bottoms: "Pants"
         case .footwear: "Shoes"
         case .more: "More"
-        }
-    }
-
-    /// Tops are layered and "More" mixes small things, so both are always pick-any.
-    var isPickOneByDefault: Bool {
-        switch self {
-        case .tops, .more: false
-        default: true
         }
     }
 
@@ -47,17 +38,10 @@ nonisolated enum OutfitRules {
         isSaved ? saved : saved.union(dailyDrivers)
     }
 
-    /// Tapping `item`: deselects it if selected; otherwise selects it, and in a
-    /// pick-one group first deselects the rest of `group`.
-    static func toggle(_ item: UUID, in selection: Set<UUID>, group: Set<UUID>, pickOne: Bool) -> Set<UUID> {
-        var result = selection
-        if result.contains(item) {
-            result.remove(item)
-        } else {
-            if pickOne { result.subtract(group) }
-            result.insert(item)
-        }
-        return result
+    /// Tapping `item` selects it, or deselects it if it was selected. Other
+    /// items are never affected.
+    static func toggle(_ item: UUID, in selection: Set<UUID>) -> Set<UUID> {
+        selection.symmetricDifference([item])
     }
 
     /// Favorites first, then most worn.

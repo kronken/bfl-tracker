@@ -6,21 +6,12 @@ import Testing
 struct OutfitRulesTests {
     let jeansA = UUID(), jeansB = UUID(), shirt = UUID(), sweater = UUID(), watch = UUID()
 
-    @Test func pickOneReplacesTheOtherItemInTheGroup() {
-        let jeans: Set = [jeansA, jeansB]
+    @Test func tappingSelectsAndDeselectsOnlyThatItem() {
         var selection: Set<UUID> = [jeansA, shirt]
-        selection = OutfitRules.toggle(jeansB, in: selection, group: jeans, pickOne: true)
+        selection = OutfitRules.toggle(jeansB, in: selection)
+        #expect(selection == [jeansA, jeansB, shirt]) // two pairs of jeans is fine
+        selection = OutfitRules.toggle(jeansA, in: selection)
         #expect(selection == [jeansB, shirt])
-    }
-
-    @Test func tappingTheSelectedItemDeselectsIt() {
-        let selection = OutfitRules.toggle(jeansA, in: [jeansA], group: [jeansA, jeansB], pickOne: true)
-        #expect(selection.isEmpty)
-    }
-
-    @Test func pickAnyKeepsOthers() {
-        let selection = OutfitRules.toggle(sweater, in: [shirt], group: [shirt, sweater], pickOne: false)
-        #expect(selection == [shirt, sweater])
     }
 
     @Test func dailyDriversArePreselectedOnlyOnUnsavedDays() {
@@ -39,8 +30,6 @@ struct OutfitRulesTests {
         #expect(OutfitGroup(category: .knitwear) == .tops)
         #expect(OutfitGroup(category: .bottoms) == .bottoms)
         #expect(OutfitGroup(category: .accessories) == .more)
-        #expect(OutfitGroup.outerwear.isPickOneByDefault)
-        #expect(!OutfitGroup.tops.isPickOneByDefault)
     }
 }
 

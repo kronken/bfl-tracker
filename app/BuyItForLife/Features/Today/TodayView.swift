@@ -16,10 +16,6 @@ struct TodayView: View {
     @State private var showCityChoice = false
     @State private var showNewItem = false
     @State private var toggleCount = 0
-    /// Groups switched to pick-any ("Wore more?") and groups expanded after
-    /// picking, keyed by day and group, so both reset on a new day.
-    @State private var multiGroups: Set<String> = []
-    @State private var expandedGroups: Set<String> = []
 
     private let calendar = Calendar.current
 
@@ -290,51 +286,16 @@ struct TodayView: View {
 
     // MARK: Groups
 
-    /// Per-day group state, e.g. "2026-10-10|bottoms". Resets on a new day.
-    private func groupKey(_ group: OutfitGroup) -> String { "\(dayKey)|\(group.rawValue)" }
-
-    private func selectedCount(in group: OutfitGroup, _ outfit: DayOutfit) -> Int {
-        outfit.clothes.count { OutfitGroup(category: $0.category) == group && outfit.isWorn($0) }
-    }
-
-    /// Pick-one unless switched to "Wore more?" today, or more than one is
-    /// already picked (e.g. an older day).
-    private func isPickOne(_ group: OutfitGroup, _ outfit: DayOutfit) -> Bool {
-        group.isPickOneByDefault && !multiGroups.contains(groupKey(group)) && selectedCount(in: group, outfit) <= 1
-    }
-
+    /// One category section: a title and its items. Pick as many as you like.
     private func groupSection(_ group: OutfitGroup, items: [Item], outfit: DayOutfit) -> some View {
-        let pickOne = isPickOne(group, outfit)
-        let picked = items.filter(outfit.isWorn)
-        let collapsed = pickOne && !picked.isEmpty && !expandedGroups.contains(groupKey(group))
-        let shown = collapsed ? picked : items
-        let hidden = items.count - picked.count
-        let rule = collapsed ? (hidden > 0 ? "\(hidden) more hidden" : "Picked") : (pickOne ? "Pick one" : "Pick any")
-        return VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .center) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(group.title)
-                        .font(.rowTitle)
-                        .foregroundStyle(.textPrimary)
-                    Text(rule)
-                        .font(.footnote)
-                        .foregroundStyle(.textSecondary)
-                }
-                Spacer()
-                if group.isPickOneByDefault {
-                    Button(collapsed ? "Change" : (pickOne ? "Wore more?" : "Pick one")) {
-                        withAnimation(.snappy) { groupAction(group, collapsed: collapsed, pickOne: pickOne, outfit: outfit) }
-                    }
-                    .font(.rowDetail)
-                    .foregroundStyle(.dataBlue)
-                    .frame(minHeight: 44)
-                }
-            }
-            .padding(.horizontal, 4)
-            .frame(minHeight: 44)
-
+        VStack(alignment: .leading, spacing: 4) {
+            Text(group.title)
+                .font(.rowTitle)
+                .foregroundStyle(.textPrimary)
+                .padding(.horizontal, 4)
+                .frame(minHeight: 44)
             VStack(spacing: 0) {
-                ForEach(Array(shown.enumerated()), id: \.element.id) { index, item in
+                ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                     if index > 0 { RowDivider() }
                     OutfitRow(item: item, detail: statsLine(outfit.stats[item.id] ?? item.stats),
                               isWorn: outfit.isWorn(item), dimmed: false) {
@@ -343,22 +304,6 @@ struct TodayView: View {
                 }
             }
             .card(padding: nil)
-        }
-    }
-
-    private func groupAction(_ group: OutfitGroup, collapsed: Bool, pickOne: Bool, outfit: DayOutfit) {
-        let key = groupKey(group)
-        if collapsed {
-            expandedGroups.insert(key)
-        } else if pickOne {
-            multiGroups.insert(key)
-        } else {
-            // Back to pick one: keep only the first picked item (favorite / most worn).
-            multiGroups.remove(key)
-            let picked = outfit.clothes.filter { OutfitGroup(category: $0.category) == group && outfit.isWorn($0) }
-            if picked.count > 1 {
-                save(outfit.selection.subtracting(picked.dropFirst().map(\.id)))
-            }
         }
     }
 
@@ -371,15 +316,7 @@ struct TodayView: View {
     // MARK: Saving
 
     private func toggle(_ item: Item) {
-        let outfit = makeOutfit()
-        let group = OutfitGroup(category: item.category)
-        let pickOne = !item.isDailyDriver && isPickOne(group, outfit)
-        let groupIDs = Set(outfit.clothes.filter { OutfitGroup(category: $0.category) == group }.map(\.id))
-        let wasWorn = outfit.isWorn(item)
-        let newSelection = OutfitRules.toggle(item.id, in: outfit.selection, group: groupIDs, pickOne: pickOne)
-        // Picking in a pick-one group collapses it to the picked row.
-        if pickOne && !wasWorn { expandedGroups.remove(groupKey(group)) }
-        save(newSelection)
+        save(OutfitRules.toggle(item.id, in: makeOutfit().selection))
     }
 
     /// Stores the day's outfit; from now on the day counts as saved.
