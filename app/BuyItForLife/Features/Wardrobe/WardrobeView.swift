@@ -96,7 +96,9 @@ struct WardrobeView: View {
     /// Owned items unworn for the limit set in Settings, longest unworn first.
     private var toSell: [Item] {
         owned.filter { $0.isSellSuggestion(months: settings.sellSuggestionMonths) }
-            .sorted { $0.monthsUnworn() > $1.monthsUnworn() }
+            .map { ($0, $0.monthsUnworn()) }
+            .sorted { $0.1 > $1.1 }
+            .map(\.0)
     }
 
     private var visible: [Item] {

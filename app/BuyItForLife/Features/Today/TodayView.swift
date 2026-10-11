@@ -30,14 +30,34 @@ struct TodayView: View {
             }
             WeekStrip(selectedDay: $selectedDay, loggedDayKeys: loggedDayKeys)
             weatherSection
-            if owned.isEmpty {
+            let outfit = makeOutfit()
+            if outfit.offered.isEmpty {
                 emptyWardrobe
             } else {
-                outfitSections
+                outfitSections(outfit)
             }
         }
         .sensoryFeedback(.selection, trigger: toggleCount)
         #if DEBUG
+        // `-benchToggle <file>`: taps the first item six times and writes
+        // how long each tap takes until the next frame is drawn.
+        .task {
+            guard let file = UserDefaults.standard.string(forKey: "benchToggle") else { return }
+            try? await Task.sleep(for: .seconds(3))
+            var report = ""
+            for _ in 0..<6 {
+                guard let item = makeOutfit().clothes.first else { break }
+                let start = ContinuousClock.now
+                toggle(item)
+                await withCheckedContinuation { continuation in
+                    DispatchQueue.main.async { continuation.resume() } // runs after the frame is committed
+                }
+                let elapsed = ContinuousClock.now - start
+                report += "\(elapsed.components.attoseconds / 1_000_000_000_000_000 + elapsed.components.seconds * 1000) ms\n"
+                try? await Task.sleep(for: .milliseconds(700))
+            }
+            try? report.write(toFile: file, atomically: true, encoding: .utf8)
+        }
         // `-openTodaySheet picker|city` on launch, for screenshots.
         .onAppear {
             switch UserDefaults.standard.string(forKey: "openTodaySheet") {
@@ -170,32 +190,38 @@ struct TodayView: View {
 
     // MARK: Outfit
 
-    /// Items Today offers on the selected day (owned then, not inactive),
-    /// favorites first, then most worn.
-    private var owned: [Item] {
-        items.filter { $0.isOfferedOnToday(on: selectedDay) }
-            .sorted {
-                OutfitRules.isOrderedBefore(favoriteA: $0.isFavorite, wearsA: $0.stats.wearCount,
-                                            favoriteB: $1.isFavorite, wearsB: $1.stats.wearCount)
-            }
+    /// Everything Today shows for the selected day, worked out once per redraw.
+    /// (Computing it per row made every tap re-sort all items and re-count
+    /// every item's wears thousands of times.)
+    private struct DayOutfit {
+        /// Items offered on the day (owned then, not inactive), favorites
+        /// first, then most worn.
+        var offered: [Item]
+        var stats: [UUID: ItemStats]
+        var selection: Set<UUID>
+
+        var dailyDrivers: [Item] { offered.filter(\.isDailyDriver) }
+        var clothes: [Item] { offered.filter { !$0.isDailyDriver } }
+        var wornCount: Int { offered.count { selection.contains($0.id) } }
+
+        func isWorn(_ item: Item) -> Bool { selection.contains(item.id) }
     }
 
-    private var dailyDrivers: [Item] { owned.filter(\.isDailyDriver) }
-    private var clothes: [Item] { owned.filter { !$0.isDailyDriver } }
-
-    /// What counts as worn on the selected day: the saved outfit, or for a day
-    /// nobody has touched yet, every daily driver.
-    private var selection: Set<UUID> {
-        OutfitRules.effectiveSelection(
-            saved: Set(dayLogs.flatMap { ($0.items ?? []).map(\.id) }),
-            isSaved: dayLogs.contains(where: \.isSaved),
-            dailyDrivers: Set(dailyDrivers.map(\.id))
+    private func makeOutfit() -> DayOutfit {
+        let candidates = items.filter { $0.isOfferedOnToday(on: selectedDay) }
+        let stats = Dictionary(candidates.map { ($0.id, $0.stats) }, uniquingKeysWith: { first, _ in first })
+        let offered = candidates.sorted {
+            OutfitRules.isOrderedBefore(favoriteA: $0.isFavorite, wearsA: stats[$0.id]?.wearCount ?? 0,
+                                        favoriteB: $1.isFavorite, wearsB: stats[$1.id]?.wearCount ?? 0)
+        }
+        let logs = dayLogs
+        let selection = OutfitRules.effectiveSelection(
+            saved: Set(logs.flatMap { ($0.items ?? []).map(\.id) }),
+            isSaved: logs.contains(where: \.isSaved),
+            dailyDrivers: Set(offered.filter(\.isDailyDriver).map(\.id))
         )
+        return DayOutfit(offered: offered, stats: stats, selection: selection)
     }
-
-    private func isWorn(_ item: Item) -> Bool { selection.contains(item.id) }
-
-    private var wornCount: Int { owned.count(where: isWorn) }
 
     private func suits(_ item: Item) -> Bool {
         guard let dayWeather else { return true }
@@ -203,21 +229,22 @@ struct TodayView: View {
     }
 
     @ViewBuilder
-    private var outfitSections: some View {
-        if !dailyDrivers.isEmpty { dailyDriversCard }
+    private func outfitSections(_ outfit: DayOutfit) -> some View {
+        if !outfit.dailyDrivers.isEmpty { dailyDriversCard(outfit) }
 
+        let clothes = outfit.clothes
         let suited = clothes.filter(suits)
         let unsuited = clothes.filter { !suits($0) }
         if !clothes.isEmpty {
             SectionLabel(
                 "\(dayWeather == nil ? "Your wardrobe" : isToday ? "Suits today" : "Suits that day") · favorites first",
-                trailing: "\(wornCount) worn"
+                trailing: "\(outfit.wornCount) worn"
             )
             .padding(.top, 8)
         }
         ForEach(OutfitGroup.allCases) { group in
             let groupItems = suited.filter { OutfitGroup(category: $0.category) == group }
-            if !groupItems.isEmpty { groupSection(group, items: groupItems) }
+            if !groupItems.isEmpty { groupSection(group, items: groupItems, outfit: outfit) }
         }
         if !unsuited.isEmpty, let dayWeather {
             VStack(alignment: .leading, spacing: 8) {
@@ -229,7 +256,7 @@ struct TodayView: View {
                             item: item,
                             detail: item.unsuitedReason(temperatureC: dayWeather.temperatureC,
                                                         conditions: dayWeather.conditions),
-                            isWorn: isWorn(item), dimmed: true
+                            isWorn: outfit.isWorn(item), dimmed: true
                         ) { toggle(item) }
                     }
                 }
@@ -241,7 +268,7 @@ struct TodayView: View {
 
     // MARK: Daily drivers
 
-    private var dailyDriversCard: some View {
+    private func dailyDriversCard(_ outfit: DayOutfit) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
                 Text("DAILY DRIVERS").tracking(0.3)
@@ -251,8 +278,8 @@ struct TodayView: View {
             .font(.label)
             .foregroundStyle(.textSecondary)
             FlowLayout(spacing: 8) {
-                ForEach(dailyDrivers) { item in
-                    DailyDriverChip(item: item, isOn: isWorn(item)) { toggle(item) }
+                ForEach(outfit.dailyDrivers) { item in
+                    DailyDriverChip(item: item, isOn: outfit.isWorn(item)) { toggle(item) }
                 }
             }
         }
@@ -266,19 +293,19 @@ struct TodayView: View {
     /// Per-day group state, e.g. "2026-10-10|bottoms". Resets on a new day.
     private func groupKey(_ group: OutfitGroup) -> String { "\(dayKey)|\(group.rawValue)" }
 
-    private func selectedCount(in group: OutfitGroup) -> Int {
-        clothes.count { OutfitGroup(category: $0.category) == group && isWorn($0) }
+    private func selectedCount(in group: OutfitGroup, _ outfit: DayOutfit) -> Int {
+        outfit.clothes.count { OutfitGroup(category: $0.category) == group && outfit.isWorn($0) }
     }
 
     /// Pick-one unless switched to "Wore more?" today, or more than one is
     /// already picked (e.g. an older day).
-    private func isPickOne(_ group: OutfitGroup) -> Bool {
-        group.isPickOneByDefault && !multiGroups.contains(groupKey(group)) && selectedCount(in: group) <= 1
+    private func isPickOne(_ group: OutfitGroup, _ outfit: DayOutfit) -> Bool {
+        group.isPickOneByDefault && !multiGroups.contains(groupKey(group)) && selectedCount(in: group, outfit) <= 1
     }
 
-    private func groupSection(_ group: OutfitGroup, items: [Item]) -> some View {
-        let pickOne = isPickOne(group)
-        let picked = items.filter(isWorn)
+    private func groupSection(_ group: OutfitGroup, items: [Item], outfit: DayOutfit) -> some View {
+        let pickOne = isPickOne(group, outfit)
+        let picked = items.filter(outfit.isWorn)
         let collapsed = pickOne && !picked.isEmpty && !expandedGroups.contains(groupKey(group))
         let shown = collapsed ? picked : items
         let hidden = items.count - picked.count
@@ -296,7 +323,7 @@ struct TodayView: View {
                 Spacer()
                 if group.isPickOneByDefault {
                     Button(collapsed ? "Change" : (pickOne ? "Wore more?" : "Pick one")) {
-                        withAnimation(.snappy) { groupAction(group, collapsed: collapsed, pickOne: pickOne) }
+                        withAnimation(.snappy) { groupAction(group, collapsed: collapsed, pickOne: pickOne, outfit: outfit) }
                     }
                     .font(.rowDetail)
                     .foregroundStyle(.dataBlue)
@@ -309,7 +336,8 @@ struct TodayView: View {
             VStack(spacing: 0) {
                 ForEach(Array(shown.enumerated()), id: \.element.id) { index, item in
                     if index > 0 { RowDivider() }
-                    OutfitRow(item: item, detail: statsLine(item), isWorn: isWorn(item), dimmed: false) {
+                    OutfitRow(item: item, detail: statsLine(outfit.stats[item.id] ?? item.stats),
+                              isWorn: outfit.isWorn(item), dimmed: false) {
                         toggle(item)
                     }
                 }
@@ -318,7 +346,7 @@ struct TodayView: View {
         }
     }
 
-    private func groupAction(_ group: OutfitGroup, collapsed: Bool, pickOne: Bool) {
+    private func groupAction(_ group: OutfitGroup, collapsed: Bool, pickOne: Bool, outfit: DayOutfit) {
         let key = groupKey(group)
         if collapsed {
             expandedGroups.insert(key)
@@ -327,15 +355,14 @@ struct TodayView: View {
         } else {
             // Back to pick one: keep only the first picked item (favorite / most worn).
             multiGroups.remove(key)
-            let picked = clothes.filter { OutfitGroup(category: $0.category) == group && isWorn($0) }
+            let picked = outfit.clothes.filter { OutfitGroup(category: $0.category) == group && outfit.isWorn($0) }
             if picked.count > 1 {
-                save(selection.subtracting(picked.dropFirst().map(\.id)))
+                save(outfit.selection.subtracting(picked.dropFirst().map(\.id)))
             }
         }
     }
 
-    private func statsLine(_ item: Item) -> String {
-        let stats = item.stats
+    private func statsLine(_ stats: ItemStats) -> String {
         let wears = stats.wearCount == 1 ? "1 wear" : "\(stats.wearCount) wears"
         guard let cpw = stats.costPerWearCents else { return wears }
         return "\(Money.format(fractionalCents: cpw)) / wear · \(wears)"
@@ -344,11 +371,12 @@ struct TodayView: View {
     // MARK: Saving
 
     private func toggle(_ item: Item) {
+        let outfit = makeOutfit()
         let group = OutfitGroup(category: item.category)
-        let pickOne = !item.isDailyDriver && isPickOne(group)
-        let groupIDs = Set(clothes.filter { OutfitGroup(category: $0.category) == group }.map(\.id))
-        let wasWorn = isWorn(item)
-        let newSelection = OutfitRules.toggle(item.id, in: selection, group: groupIDs, pickOne: pickOne)
+        let pickOne = !item.isDailyDriver && isPickOne(group, outfit)
+        let groupIDs = Set(outfit.clothes.filter { OutfitGroup(category: $0.category) == group }.map(\.id))
+        let wasWorn = outfit.isWorn(item)
+        let newSelection = OutfitRules.toggle(item.id, in: outfit.selection, group: groupIDs, pickOne: pickOne)
         // Picking in a pick-one group collapses it to the picked row.
         if pickOne && !wasWorn { expandedGroups.remove(groupKey(group)) }
         save(newSelection)

@@ -59,13 +59,10 @@ struct InsightsView: View {
     // MARK: Ranking
 
     private var ranked: [Item] {
-        let owned = items.filter { !$0.isSold }
-        return owned.sorted { a, b in
-            // Never-worn items have no cost per wear; they rank as worst value.
-            let x = a.stats.costPerWearCents ?? .infinity
-            let y = b.stats.costPerWearCents ?? .infinity
-            return bestFirst ? x < y : x > y
-        }
+        // Each item's cost per wear is worked out once, not on every comparison.
+        // Never-worn items have no cost per wear; they rank as worst value.
+        let keyed = items.filter { !$0.isSold }.map { ($0, $0.stats.costPerWearCents ?? .infinity) }
+        return keyed.sorted { bestFirst ? $0.1 < $1.1 : $0.1 > $1.1 }.map(\.0)
     }
 
     private var ranking: some View {

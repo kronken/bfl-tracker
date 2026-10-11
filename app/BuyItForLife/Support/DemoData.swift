@@ -1,6 +1,7 @@
 #if DEBUG
 import Foundation
 import SwiftData
+import UIKit
 
 /// Debug-only sample wardrobe based on the designs (generic names, no brands,
 /// so it can be used in App Store screenshots), for trying
@@ -9,12 +10,66 @@ import SwiftData
 enum DemoData {
     static var isEnabled: Bool { UserDefaults.standard.bool(forKey: "demoData") }
 
+    /// `-demoLarge YES`: a 43-item wardrobe with real-sized photos in an
+    /// on-disk store, like a real phone, for measuring performance.
+    static var isLarge: Bool { UserDefaults.standard.bool(forKey: "demoLarge") }
+
     static func makeContainer() -> ModelContainer {
         let schema = Schema([Item.self, DayLog.self])
-        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+        let configuration: ModelConfiguration
+        if isLarge {
+            let url = URL.temporaryDirectory.appending(path: "demo-\(UUID().uuidString).store")
+            configuration = ModelConfiguration(schema: schema, url: url, cloudKitDatabase: .none)
+        } else {
+            configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+        }
         let container = try! ModelContainer(for: schema, configurations: [configuration])
         insertSamples(into: container.mainContext)
+        if isLarge { insertLargeWardrobe(into: container.mainContext) }
+        try? container.mainContext.save()
         return container
+    }
+
+    /// Fills up to 43 items and gives every item a generated photo of
+    /// realistic size (1200 px original, cutout and 600 px thumbnail).
+    private static func insertLargeWardrobe(into context: ModelContext) {
+        let existing = (try? context.fetch(FetchDescriptor<Item>())) ?? []
+        let categories: [ItemCategory] = [.tops, .knitwear, .bottoms, .outerwear, .footwear, .headwear, .underwear]
+        for index in existing.count..<43 {
+            let item = Item(name: "Demo item \(index + 1)", category: categories[index % categories.count],
+                            purchaseDate: date(2022, 1 + index % 12), purchasePriceCents: 5_000 + index * 700,
+                            priorWearCount: index * 3)
+            context.insert(item)
+        }
+        let all = (try? context.fetch(FetchDescriptor<Item>())) ?? []
+        for (index, item) in all.enumerated() {
+            let image = sampleImage(seed: index)
+            guard let full = PhotoProcessor.render(image, maxSide: PhotoProcessor.fullSize, opaque: true),
+                  let thumb = PhotoProcessor.render(image, maxSide: PhotoProcessor.thumbnailSize, opaque: false)
+            else { continue }
+            item.photoOriginal = PhotoProcessor.encode(full, hasAlpha: false)
+            item.photoCutout = PhotoProcessor.encode(full, hasAlpha: true)
+            item.thumbnail = PhotoProcessor.encode(thumb, hasAlpha: true)
+            item.usesCutout = true
+        }
+    }
+
+    /// A noisy gradient, so the encoded photo is about as large as a real one.
+    private static func sampleImage(seed: Int) -> UIImage {
+        let size = CGSize(width: 1500, height: 2000)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        return UIGraphicsImageRenderer(size: size, format: format).image { context in
+            var generator = SystemRandomNumberGenerator()
+            for row in stride(from: 0, to: Int(size.height), by: 8) {
+                for column in stride(from: 0, to: Int(size.width), by: 8) {
+                    let hue = (Double(seed) * 0.13 + Double(row) / 4000).truncatingRemainder(dividingBy: 1)
+                    UIColor(hue: hue, saturation: 0.5, brightness: Double.random(in: 0.3...0.9, using: &generator),
+                            alpha: 1).setFill()
+                    context.fill(CGRect(x: column, y: row, width: 8, height: 8))
+                }
+            }
+        }
     }
 
     private static func date(_ year: Int, _ month: Int, _ day: Int = 1) -> Date {
