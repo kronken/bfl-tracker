@@ -63,22 +63,26 @@ struct InsightsView: View {
     // MARK: Totals
 
     private func totals(_ wardrobe: WardrobeStats) -> some View {
-        let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
-        return LazyVGrid(columns: columns, spacing: 12) {
-            if settings.hidesTotals {
-                // Feel-good mode: use and value instead of money spent.
-                let owned = items.filter { !$0.isSold }
-                let paidOff = owned.count { $0.stats.isPaidOff(targetCents: settings.paidOffTargetCents) }
-                TotalTile(label: "Items owned", value: owned.count.formatted())
-                TotalTile(label: "Paid off", value: "\(paidOff) of \(owned.count)")
-            } else {
-                TotalTile(label: "Total spent", value: Money.format(cents: wardrobe.totalSpentCents),
-                          detail: spentCaption(wardrobe))
-                TotalTile(label: "Back from sales", value: Money.format(cents: wardrobe.backFromSalesCents))
+        // Grid (not LazyVGrid) so both tiles in a row get the taller one's height.
+        Grid(horizontalSpacing: 12, verticalSpacing: 12) {
+            GridRow {
+                if settings.hidesTotals {
+                    // Feel-good mode: use and value instead of money spent.
+                    let owned = items.filter { !$0.isSold }
+                    let paidOff = owned.count { $0.stats.isPaidOff(targetCents: settings.paidOffTargetCents) }
+                    TotalTile(label: "Items owned", value: owned.count.formatted())
+                    TotalTile(label: "Paid off", value: "\(paidOff) of \(owned.count)")
+                } else {
+                    TotalTile(label: "Total spent", value: Money.format(cents: wardrobe.totalSpentCents),
+                              detail: spentCaption(wardrobe))
+                    TotalTile(label: "Back from sales", value: Money.format(cents: wardrobe.backFromSalesCents))
+                }
             }
-            TotalTile(label: "Total wears", value: wardrobe.wearCount.formatted())
-            TotalTile(label: "Avg cost / wear",
-                      value: wardrobe.averageCostPerWearCents.map { Money.format(fractionalCents: $0) } ?? "–")
+            GridRow {
+                TotalTile(label: "Total wears", value: wardrobe.wearCount.formatted())
+                TotalTile(label: "Avg cost / wear",
+                          value: wardrobe.averageCostPerWearCents.map { Money.format(fractionalCents: $0) } ?? "–")
+            }
         }
     }
 
@@ -325,7 +329,7 @@ private struct TotalTile: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(.surface, in: .rect(cornerRadius: Radius.card))
         .overlay { RoundedRectangle(cornerRadius: Radius.card).strokeBorder(.stroke, lineWidth: 1) }
         .accessibilityElement(children: .combine)
