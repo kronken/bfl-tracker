@@ -51,6 +51,7 @@ struct ItemDraft: Equatable {
     var purchaseDate = Date.now
     var priorWearCount = 0
     var boughtSecondHand = false
+    var isGift = false
     var isFavorite = false
     var isDailyDriver = false
     var isInactive = false
@@ -85,6 +86,7 @@ struct ItemDraft: Equatable {
         purchaseDate = item.purchaseDate
         priorWearCount = item.priorWearCount
         boughtSecondHand = item.boughtSecondHand
+        isGift = item.isGift
         isFavorite = item.isFavorite
         isDailyDriver = item.isDailyDriver
         isInactive = item.isInactive
@@ -110,7 +112,8 @@ struct ItemDraft: Equatable {
     var soldPriceCents: Int? { Money.parseCents(soldPriceText) }
 
     var isValid: Bool {
-        !trimmedName.isEmpty && category != nil && priceCents != nil && (!isSold || soldPriceCents != nil)
+        // A gift's value may be left empty (counts as 0).
+        !trimmedName.isEmpty && category != nil && (priceCents != nil || isGift) && (!isSold || soldPriceCents != nil)
     }
 
     // MARK: Temperature range, in 5° steps, at least 5° wide
@@ -135,6 +138,7 @@ struct ItemDraft: Equatable {
         item.purchaseDate = purchaseDate
         item.priorWearCount = max(0, priorWearCount)
         item.boughtSecondHand = boughtSecondHand
+        item.isGift = isGift
         item.isFavorite = isFavorite
         item.isDailyDriver = isDailyDriver
         item.isInactive = isInactive

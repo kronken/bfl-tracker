@@ -17,6 +17,9 @@ final class Item {
     var purchasePriceCents: Int = 0
     /// Pre-owned, vintage or swapped.
     var boughtSecondHand: Bool = false
+    /// Received as a gift: `purchasePriceCents` is then its value. Counts for
+    /// cost per wear, but not as money spent.
+    var isGift: Bool = false
     /// Estimated wears before the item was tracked in the app ("Worn so far").
     var priorWearCount: Int = 0
 
@@ -106,6 +109,11 @@ extension Item {
         let purchases: [DatedCost] = isMultiPiece
             ? boughtEvents.map { DatedCost(date: $0.date, cents: $0.priceCents ?? 0) }
             : [DatedCost(date: purchaseDate, cents: purchasePriceCents)]
+        // Spending leaves out what was received as a gift; repairs always count.
+        let spentPurchases: [DatedCost] = isMultiPiece
+            ? boughtEvents.filter { !$0.isGift }.map { DatedCost(date: $0.date, cents: $0.priceCents ?? 0) }
+            : (isGift ? [] : purchases)
+        let repairCosts = repairs.map { DatedCost(date: $0.date, cents: $0.priceCents) }
         return ItemStats(
             purchaseDate: purchaseDate,
             purchasePriceCents: purchasePriceCents,
@@ -114,7 +122,8 @@ extension Item {
             soldDate: soldDate,
             soldPriceCents: soldPriceCents,
             repairsCents: repairs.reduce(0) { $0 + $1.priceCents },
-            datedCosts: purchases + repairs.map { DatedCost(date: $0.date, cents: $0.priceCents) }
+            datedCosts: purchases + repairCosts,
+            spendCosts: spentPurchases + repairCosts
         )
     }
 

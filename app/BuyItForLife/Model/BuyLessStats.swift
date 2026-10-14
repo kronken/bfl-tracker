@@ -111,12 +111,12 @@ nonisolated enum BuyLessCopy {
 
 extension Item {
     /// The purchases this item stands for: its own purchase, or for identical
-    /// pieces each "bought" entry in the log.
+    /// pieces each "bought" entry in the log. Gifts aren't purchases.
     var purchases: [Purchase] {
         if isMultiPiece {
-            return (pieceEvents ?? []).filter { $0.kind == .bought }
+            return (pieceEvents ?? []).filter { $0.kind == .bought && !$0.isGift }
                 .map { Purchase(date: $0.date, cents: $0.priceCents ?? 0, name: name) }
         }
-        return [Purchase(date: purchaseDate, cents: purchasePriceCents, name: name)]
+        return isGift ? [] : [Purchase(date: purchaseDate, cents: purchasePriceCents, name: name)]
     }
 }

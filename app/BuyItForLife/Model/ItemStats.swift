@@ -22,6 +22,10 @@ nonisolated struct ItemStats: Equatable, Sendable {
     /// Every purchase and repair on its own date. Empty means one purchase of
     /// `purchasePriceCents` on `purchaseDate`.
     var datedCosts: [DatedCost] = []
+    /// What was actually spent, dated: like `datedCosts` but without the value
+    /// of gifts (repairs on gifts still count). nil means the same as
+    /// `costTimeline`.
+    var spendCosts: [DatedCost]? = nil
 
     /// Original price plus repairs.
     var totalCostCents: Int { purchasePriceCents + repairsCents }
@@ -33,6 +37,13 @@ nonisolated struct ItemStats: Equatable, Sendable {
 
     /// Estimated earlier wears plus logged days.
     var wearCount: Int { max(0, priorWearCount) + loggedDayKeys.count }
+
+    /// Money actually spent, dated. Every spending figure reads this, never
+    /// `totalCostCents`, so gifts don't count as spending.
+    var spendTimeline: [DatedCost] { spendCosts ?? costTimeline }
+    var spendCents: Int { spendTimeline.reduce(0) { $0 + $1.cents } }
+    /// Spend minus sale price, never below zero.
+    var netSpendCents: Int { max(0, spendCents - (soldPriceCents ?? 0)) }
 
     /// Total cost (original price plus repairs) minus sale price, never below zero.
     var netCostCents: Int { max(0, totalCostCents - (soldPriceCents ?? 0)) }
@@ -106,15 +117,16 @@ nonisolated struct MonthCount: Equatable, Sendable {
 nonisolated struct WardrobeStats: Equatable, Sendable {
     var items: [ItemStats]
 
-    /// Everything paid, repairs included.
-    var totalSpentCents: Int { items.reduce(0) { $0 + $1.totalCostCents } }
+    /// Everything paid, repairs included, gifts excluded.
+    var totalSpentCents: Int { items.reduce(0) { $0 + $1.spendCents } }
     var repairsCents: Int { items.reduce(0) { $0 + $1.repairsCents } }
     var backFromSalesCents: Int { items.reduce(0) { $0 + ($1.soldPriceCents ?? 0) } }
-    var netCostCents: Int { items.reduce(0) { $0 + $1.netCostCents } }
+    /// Spent minus money back from sales (gifts excluded).
+    var netSpendCents: Int { items.reduce(0) { $0 + $1.netSpendCents } }
     var wearCount: Int { items.reduce(0) { $0 + $1.wearCount } }
 
     var averageCostPerWearCents: Double? {
-        wearCount > 0 ? Double(netCostCents) / Double(wearCount) : nil
+        wearCount > 0 ? Double(netSpendCents) / Double(wearCount) : nil
     }
 
     /// Days from the earliest purchase to `date`, at least 1 once an item
@@ -136,7 +148,7 @@ nonisolated struct WardrobeStats: Equatable, Sendable {
         let net = items.reduce(0) { total, item in
             guard calendar.startOfDay(for: item.purchaseDate) <= day else { return total }
             // Purchases and repairs count from their own dates.
-            let paid = item.costTimeline.filter { calendar.startOfDay(for: $0.date) <= day }.reduce(0) { $0 + $1.cents }
+            let paid = item.spendTimeline.filter { calendar.startOfDay(for: $0.date) <= day }.reduce(0) { $0 + $1.cents }
             let soldByThen = item.soldDate.map { calendar.startOfDay(for: $0) <= day } ?? false
             return total + max(0, paid - (soldByThen ? item.soldPriceCents ?? 0 : 0))
         }
@@ -170,7 +182,7 @@ nonisolated struct WardrobeStats: Equatable, Sendable {
         let thisYear = max(firstYear, calendar.component(.year, from: now))
         var totals: [Int: Int] = [:]
         for item in items {
-            for cost in item.costTimeline {
+            for cost in item.spendTimeline {
                 totals[calendar.component(.year, from: cost.date), default: 0] += cost.cents
             }
         }
@@ -189,7 +201,7 @@ nonisolated extension WardrobeStats {
         let starts = (0..<months).reversed().compactMap { calendar.date(byAdding: .month, value: -$0, to: thisMonth) }
         var totals: [Date: Int] = [:]
         for item in items {
-            for cost in item.costTimeline {
+            for cost in item.spendTimeline {
                 guard let month = calendar.date(from: calendar.dateComponents([.year, .month], from: cost.date)) else { continue }
                 totals[month, default: 0] += cost.cents
             }

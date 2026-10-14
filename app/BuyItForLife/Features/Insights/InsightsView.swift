@@ -73,13 +73,23 @@ struct InsightsView: View {
                 TotalTile(label: "Paid off", value: "\(paidOff) of \(owned.count)")
             } else {
                 TotalTile(label: "Total spent", value: Money.format(cents: wardrobe.totalSpentCents),
-                          detail: wardrobe.repairsCents > 0 ? "incl. \(Money.format(cents: wardrobe.repairsCents)) repairs" : nil)
+                          detail: spentCaption(wardrobe))
                 TotalTile(label: "Back from sales", value: Money.format(cents: wardrobe.backFromSalesCents))
             }
             TotalTile(label: "Total wears", value: wardrobe.wearCount.formatted())
             TotalTile(label: "Avg cost / wear",
                       value: wardrobe.averageCostPerWearCents.map { Money.format(fractionalCents: $0) } ?? "–")
         }
+    }
+
+    /// "incl. €132 repairs · gifts excluded", only the parts that apply.
+    private func spentCaption(_ wardrobe: WardrobeStats) -> String? {
+        var parts: [String] = []
+        if wardrobe.repairsCents > 0 { parts.append("incl. \(Money.format(cents: wardrobe.repairsCents)) repairs") }
+        if items.contains(where: { $0.isGift || ($0.pieceEvents ?? []).contains(where: \.isGift) }) {
+            parts.append("gifts excluded")
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     // MARK: Ranking
@@ -180,7 +190,7 @@ private struct CostPerDayCard: View {
     private func summary(now: Double) -> String {
         let yearAgo = Calendar.current.date(byAdding: .year, value: -1, to: .now)
             .flatMap { wardrobe.costPerDayCents(asOf: $0) }
-        return CostPerDayCopy.summary(nowCents: now, yearAgoCents: yearAgo, netCents: wardrobe.netCostCents,
+        return CostPerDayCopy.summary(nowCents: now, yearAgoCents: yearAgo, netCents: wardrobe.netSpendCents,
                                       days: wardrobe.daysTracked(), hidesTotals: hidesTotals)
     }
 }
@@ -309,8 +319,8 @@ private struct TotalTile: View {
                 Text(detail)
                     .font(.footnote)
                     .foregroundStyle(.textSecondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(.horizontal, 16)

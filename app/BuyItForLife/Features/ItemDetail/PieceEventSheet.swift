@@ -18,6 +18,7 @@ struct PieceEventSheet: View {
     @State private var date = Date.now
     @State private var priceText = ""
     @State private var reason = PieceEvent.retireReasons[0]
+    @State private var isGift = false
     @State private var confirmDelete = false
 
     private var editing: PieceEvent? {
@@ -79,7 +80,9 @@ struct PieceEventSheet: View {
                 }
                 if kind == .bought {
                     RowDivider()
-                    FormRow(label: "Price for all", detail: eachText) {
+                    ToggleRow(label: "Gift", detail: "Received, not bought: not counted as spending", isOn: $isGift)
+                    RowDivider()
+                    FormRow(label: isGift ? "Value of all" : "Price for all", detail: eachText) {
                         TextField("Price for all", text: $priceText,
                                   prompt: Text(Money.format(cents: 0)).foregroundStyle(.textTertiary))
                             .font(.number(.body, weight: .regular))
@@ -165,6 +168,7 @@ struct PieceEventSheet: View {
             date = event.date
             priceText = event.priceCents.map { Money.inputText(cents: $0) } ?? ""
             reason = event.reason ?? PieceEvent.retireReasons[0]
+            isGift = event.isGift
         }
     }
 
@@ -178,6 +182,7 @@ struct PieceEventSheet: View {
         event.quantity = quantity
         event.date = date
         event.priceCents = kind == .bought ? priceCents ?? 0 : nil
+        event.isGift = kind == .bought && isGift
         event.reason = kind == .retired ? reason : nil
         item.syncFromPieceEvents()
         try? modelContext.save()

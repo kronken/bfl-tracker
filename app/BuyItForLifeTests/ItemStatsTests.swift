@@ -136,7 +136,7 @@ struct WardrobeStatsTests {
         let w = wardrobe
         #expect(w.totalSpentCents == 86_900)
         #expect(w.backFromSalesCents == 33_500)
-        #expect(w.netCostCents == 53_400)
+        #expect(w.netSpendCents == 53_400)
         #expect(w.wearCount == 500)
         #expect(w.averageCostPerWearCents == 106.8)
     }

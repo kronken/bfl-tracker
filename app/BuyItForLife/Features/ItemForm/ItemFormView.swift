@@ -102,15 +102,20 @@ struct ItemFormView: View {
                     }
                 } else {
                     RowDivider()
-                    FormRow(label: draft.isMultiPiece ? "Price for all" : "Price") {
+                    FormRow(label: draft.isGift ? (draft.isMultiPiece ? "Value of all" : "Value")
+                                                : (draft.isMultiPiece ? "Price for all" : "Price")) {
                         priceField($draft.priceText, field: .price)
                     }
                     RowDivider()
-                    FormRow(label: "Bought") {
+                    FormRow(label: draft.isGift ? "Received" : "Bought") {
                         DatePicker("Bought", selection: $draft.purchaseDate, in: ...Date.now, displayedComponents: .date)
                             .labelsHidden()
                     }
                 }
+                RowDivider()
+                ToggleRow(label: "Received as a gift",
+                          detail: "Not counted as spending. Value still sets cost per wear",
+                          isOn: $draft.isGift)
                 RowDivider()
                 ToggleRow(label: "Bought second-hand", detail: "Pre-owned, vintage or swapped",
                           isOn: $draft.boughtSecondHand)
@@ -330,10 +335,16 @@ struct ItemFormView: View {
         if item.isMultiPiece && events.isEmpty {
             let first = PieceEvent(kind: .bought, quantity: draft.pieceCount, date: item.purchaseDate,
                                    priceCents: item.purchasePriceCents)
+            first.isGift = item.isGift
             modelContext.insert(first)
             first.item = item
         } else if !item.isMultiPiece && events.count == 1 {
             modelContext.delete(events[0])
+        }
+        // The first purchase of a set follows the item's gift switch; later
+        // Add mores keep their own setting.
+        if item.isMultiPiece, let first = (item.pieceEvents ?? []).filter({ $0.kind == .bought }).min(by: { $0.date < $1.date }) {
+            first.isGift = item.isGift
         }
         item.syncFromPieceEvents()
     }

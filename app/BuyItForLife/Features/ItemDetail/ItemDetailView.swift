@@ -171,6 +171,7 @@ struct ItemDetailView: View {
     private var itemLabels: [(title: String, symbol: String)] {
         guard !item.isSold else { return [] }
         var labels: [(String, String)] = []
+        if item.isGift { labels.append(("Gift", "gift")) }
         if item.isFavorite { labels.append(("Favorite", "star.fill")) }
         if item.isDailyDriver { labels.append(("Daily driver", "arrow.triangle.2.circlepath")) }
         if item.isMultiPiece { labels.append(("Identical pieces", "square.on.square")) }
@@ -182,7 +183,8 @@ struct ItemDetailView: View {
         let date = item.purchaseDate.formatted(date: .abbreviated, time: .omitted)
         var parts = [
             item.category.title,
-            item.isMultiPiece ? "First bought \(date)" : "Bought \(item.boughtSecondHand ? "second-hand" : "new"), \(date)",
+            item.isGift ? (item.isMultiPiece ? "Gift, first received \(date)" : "Gift, received \(date)")
+                : item.isMultiPiece ? "First bought \(date)" : "Bought \(item.boughtSecondHand ? "second-hand" : "new"), \(date)",
         ]
         if let soldDate = item.soldDate {
             parts.append("Sold \(Money.format(cents: item.soldPriceCents ?? 0)) on \(soldDate.formatted(date: .abbreviated, time: .omitted))")
@@ -267,7 +269,7 @@ struct ItemDetailView: View {
         let figures: [(String, String, Bool)] = item.isMultiPiece
             ? [("\(item.piecesBought)", "BOUGHT", false), ("\(item.piecesRetired)", "RETIRED", false),
                (Money.format(cents: stats.totalCostCents), "TOTAL COST", true)]
-            : [(Money.format(cents: stats.purchasePriceCents), "ORIGINAL", false),
+            : [(Money.format(cents: stats.purchasePriceCents), item.isGift ? "GIFT VALUE" : "ORIGINAL", false),
                (repairCount == 0 ? "—" : "+\(Money.format(cents: stats.repairsCents))",
                 repairCount == 0 ? "REPAIRS" : "REPAIRS (\(repairCount))", false),
                (Money.format(cents: stats.totalCostCents), "TOTAL COST", true)]

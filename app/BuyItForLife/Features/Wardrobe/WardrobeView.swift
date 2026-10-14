@@ -56,12 +56,13 @@ struct WardrobeView: View {
         }
         .onChange(of: shelf) { filter = .all }
         #if DEBUG
-        // `-openItemForm new|edit` or `-openItemDetail` on launch, for screenshots.
+        // `-openItemForm new|edit|<name prefix>` or `-openItemDetail` on launch, for screenshots.
         .onAppear {
             switch UserDefaults.standard.string(forKey: "openItemForm") {
             case "new": showNewItem = true
             case "edit": editing = items.first
-            default: break
+            case let name?: editing = items.first { $0.name.hasPrefix(name) }
+            case nil: break
             }
             // `-wardrobeShelf toSell|sold` opens another segment.
             switch UserDefaults.standard.string(forKey: "wardrobeShelf") {
@@ -128,7 +129,7 @@ struct WardrobeView: View {
         case .sold where settings.hidesTotals:
             sold.count == 1 ? "1 item sold" : "\(sold.count) items sold"
         case .owned:
-            "\(Money.format(cents: owned.reduce(0) { $0 + $1.stats.totalCostCents })) in what you own"
+            "\(Money.format(cents: owned.reduce(0) { $0 + $1.stats.spendCents })) spent on what you own"
         case .toSell:
             settings.sellSuggestionMonths == 12
                 ? "Unworn for a year or more"
@@ -258,6 +259,8 @@ struct WardrobeCard: View {
                 .overlay(alignment: .topLeading) {
                     if item.isSold {
                         PhotoTag(text: "SOLD").padding(8)
+                    } else if item.isGift {
+                        PhotoTag(text: "GIFT").padding(8)
                     } else if item.boughtSecondHand {
                         PhotoTag(text: "SECOND-HAND").padding(8)
                     }

@@ -122,6 +122,7 @@ enum DemoData {
             context.insert(item)
             drivers.append(item)
         }
+        drivers[0].isGift = true // the watch was a present
         // Repairs on the boots.
         for (name, details, when, price) in [("Resole", "Vibram 430 mini-lug sole and new heel", date(2024, 11, 12), 120),
                                              ("New laces", "Original leather laces", date(2023, 3, 3), 12)] {

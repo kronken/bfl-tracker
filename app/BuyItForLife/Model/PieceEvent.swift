@@ -19,6 +19,8 @@ final class PieceEvent {
     var priceCents: Int?
     /// Retired only: one of `retireReasons`.
     var reason: String?
+    /// Bought only: received as a gift, so not counted as spending.
+    var isGift: Bool = false
     var item: Item?
 
     var kind: Kind {
