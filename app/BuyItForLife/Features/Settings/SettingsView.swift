@@ -6,10 +6,12 @@ struct SettingsView: View {
     @Environment(WeatherStore.self) private var weather
     @Environment(\.modelContext) private var modelContext
     @Query private var items: [Item]
+    @Query private var occasions: [Occasion]
 
     @State private var reminderProblem: String?
     @State private var versionTaps: [Date] = []
     @State private var showDebug = false
+    @State private var showOccasions = false
 
     @State private var cityListOpen = false
     @State private var isLocating = false
@@ -24,6 +26,7 @@ struct SettingsView: View {
         TabScreen {
             ScreenHeader(title: "Settings")
             VStack(alignment: .leading, spacing: 24) {
+                occasionsSection
                 weatherSection
                 reminderSection
                 paidOffSection
@@ -41,13 +44,46 @@ struct SettingsView: View {
             .padding(.top, 8)
         }
         .sheet(isPresented: $showDebug) { DebugView() }
+        .navigationDestination(isPresented: $showOccasions) { OccasionsView() }
         #if DEBUG
         // `-openDebugScreen YES` / `-replayOnboarding YES` on launch, for screenshots.
         .onAppear {
             if UserDefaults.standard.bool(forKey: "openDebugScreen") { showDebug = true }
+            if UserDefaults.standard.string(forKey: "openOccasions") != nil { showOccasions = true }
             if UserDefaults.standard.bool(forKey: "replayOnboarding") { AppRouter.shared.replayOnboarding = true }
         }
         #endif
+    }
+
+    // MARK: Occasions
+
+    private var occasionsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel("Occasions")
+            Button { showOccasions = true } label: {
+                HStack(spacing: 12) {
+                    iconTile("square.grid.2x2")
+                    Text("Occasions")
+                        .font(.body)
+                        .foregroundStyle(.textPrimary)
+                    Spacer(minLength: 8)
+                    Text(OccasionRules.visible(occasions.map(\.info)).map(\.name).joined(separator: ", "))
+                        .font(.body)
+                        .foregroundStyle(.textSecondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.textTertiary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .frame(minHeight: 56)
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .card(padding: nil)
+        }
     }
 
     // MARK: Weather

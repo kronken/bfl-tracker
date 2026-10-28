@@ -15,7 +15,7 @@ enum DemoData {
     static var isLarge: Bool { UserDefaults.standard.bool(forKey: "demoLarge") }
 
     static func makeContainer() -> ModelContainer {
-        let schema = Schema([Item.self, DayLog.self, Repair.self, PieceEvent.self])
+        let schema = Schema([Item.self, DayLog.self, Repair.self, PieceEvent.self, Occasion.self])
         let configuration: ModelConfiguration
         if isLarge {
             let url = URL.temporaryDirectory.appending(path: "demo-\(UUID().uuidString).store")
@@ -25,6 +25,7 @@ enum DemoData {
         }
         let container = try! ModelContainer(for: schema, configurations: [configuration])
         insertSamples(into: container.mainContext)
+        if UserDefaults.standard.bool(forKey: "demoOccasions") { insertOccasions(into: container.mainContext) }
         if isLarge { insertLargeWardrobe(into: container.mainContext) }
         try? container.mainContext.save()
         return container
@@ -179,6 +180,23 @@ enum DemoData {
             item.soldPriceCents = soldFor * 100
             item.tintHex = tint
             context.insert(item)
+        }
+    }
+
+    /// `-demoOccasions YES`: Everyday, Office on weekdays and Gym, like the
+    /// designs. Office gets the boots, jeans, sweater and rain shell; Gym is
+    /// empty, to show its empty card.
+    private static func insertOccasions(into context: ModelContext) {
+        let everyday = Occasion.ensureBuiltIn(in: context)
+        let office = Occasion(name: "Office", weekdays: .workweek, sortOrder: 1)
+        let gym = Occasion(name: "Gym", sortOrder: 2)
+        context.insert(office)
+        context.insert(gym)
+        let items = (try? context.fetch(FetchDescriptor<Item>())) ?? []
+        let officeNames: Set = ["Leather work boots", "Raw denim jeans", "Selvedge jeans", "Aran wool sweater",
+                                "Rain shell", "Field watch", "Leather belt", "Linen shirt", "Cotton boxers"]
+        for item in items where officeNames.contains(item.name) {
+            item.occasions = item.name == "Selvedge jeans" ? [office] : [everyday, office]
         }
     }
 

@@ -64,6 +64,8 @@ struct ItemDraft: Equatable {
     /// More than one log entry: the switch can no longer be turned off.
     var pieceLogLocked = false
     var category: ItemCategory?
+    /// `Occasion.id`s. Empty only until the form fills in the default.
+    var occasionIDs: Set<UUID> = []
     var minTempC = -30
     var maxTempC = 35
     var conditions: WeatherConditions = .all
@@ -95,6 +97,7 @@ struct ItemDraft: Equatable {
         hasPieceLog = item.isMultiPiece && !events.isEmpty
         pieceLogLocked = item.isMultiPiece && events.count > 1
         category = item.category
+        occasionIDs = Set((item.occasions ?? []).map(\.id))
         minTempC = item.minTempC
         maxTempC = item.maxTempC
         conditions = item.conditions

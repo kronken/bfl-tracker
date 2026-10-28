@@ -276,3 +276,46 @@ struct DailyDriverChip: View {
         .accessibilityHint(isOn ? "Worn today. Tap to unmark." : "Tap to mark as worn.")
     }
 }
+
+/// Today's occasion capsules. The one picked automatically for the day has a
+/// small blue dot.
+struct OccasionSwitcher: View {
+    var occasions: [OccasionInfo]
+    var selectedID: UUID?
+    var automaticID: UUID?
+    var onSelect: (OccasionInfo) -> Void
+
+    var body: some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: 8) {
+                ForEach(occasions) { occasion in
+                    let isOn = occasion.id == selectedID
+                    Button {
+                        onSelect(occasion)
+                    } label: {
+                        HStack(spacing: 6) {
+                            Text(occasion.name)
+                                .font(.rowDetail.weight(.semibold))
+                                .lineLimit(1)
+                            if occasion.id == automaticID {
+                                Circle().fill(.dataBlue).frame(width: 6, height: 6)
+                            }
+                        }
+                        .foregroundStyle(isOn ? .textPrimary : .textSecondary)
+                        .padding(.horizontal, 14)
+                        .frame(minHeight: 36)
+                        .background(isOn ? AnyShapeStyle(.fillSelected) : AnyShapeStyle(.clear), in: .capsule)
+                        .overlay { Capsule().strokeBorder(.stroke, lineWidth: 1) }
+                        .contentShape(.capsule)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(isOn ? .isSelected : [])
+                    .accessibilityHint(occasion.id == automaticID ? "The usual pick for this day" : "")
+                }
+            }
+            .padding(.vertical, 1)
+        }
+        .scrollIndicators(.hidden)
+        .scrollClipDisabled()
+    }
+}

@@ -11,6 +11,7 @@ struct TodayView: View {
 
     @Query(sort: \Item.purchaseDate, order: .reverse) private var items: [Item]
     @Query private var logs: [DayLog]
+    @Query private var occasions: [Occasion]
 
     @State private var selectedDay = Calendar.current.startOfDay(for: .now)
     @State private var pastWeather: WeatherSnapshot?
@@ -26,11 +27,17 @@ struct TodayView: View {
             ScreenHeader(subtitle: dateLabel, title: title) {
                 GlassIconButton(systemImage: "calendar", accessibilityLabel: "Pick a day") { showPicker = true }
             }
+            let dayOccasion = makeDayOccasion()
+            if dayOccasion.choices.count > 1, let showing = dayOccasion.showing, let automatic = dayOccasion.automatic {
+                occasionSwitcher(dayOccasion, showing: showing, automatic: automatic)
+            }
             WeekStrip(selectedDay: $selectedDay, loggedDayKeys: loggedDayKeys)
             weatherSection
-            let outfit = makeOutfit()
+            let outfit = makeOutfit(occasion: dayOccasion)
             if outfit.offered.isEmpty {
                 emptyWardrobe
+            } else if outfit.shown.isEmpty, let showing = dayOccasion.showing {
+                emptyOccasion(showing)
             } else {
                 outfitSections(outfit)
             }
@@ -56,12 +63,17 @@ struct TodayView: View {
             }
             try? report.write(toFile: file, atomically: true, encoding: .utf8)
         }
-        // `-openTodaySheet picker|city` on launch, for screenshots.
+        // `-openTodaySheet picker|city` and `-todayOccasion <name>` on launch, for screenshots.
         .onAppear {
             switch UserDefaults.standard.string(forKey: "openTodaySheet") {
             case "picker": showPicker = true
             case "city": showCityChoice = true
             default: break
+            }
+            let day = makeDayOccasion()
+            if let name = UserDefaults.standard.string(forKey: "todayOccasion"),
+               let occasion = day.choices.first(where: { $0.name == name }), let automatic = day.automatic {
+                pickOccasion(occasion, automatic: automatic)
             }
         }
         #endif
@@ -186,6 +198,72 @@ struct TodayView: View {
         }
     }
 
+    // MARK: Occasion
+
+    /// The occasions Today can switch between, and which one the selected
+    /// day shows.
+    private struct DayOccasion {
+        /// Visible occasions, in order.
+        var choices: [OccasionInfo]
+        var builtInID: UUID?
+        /// What the day shows: its override, or else the automatic pick.
+        var showing: OccasionInfo?
+        /// What a day rule or the default would pick.
+        var automatic: OccasionInfo?
+    }
+
+    private func makeDayOccasion() -> DayOccasion {
+        let all = occasions.map(\.info)
+        let override = dayLogs.lazy.compactMap(\.occasionID).first.flatMap(UUID.init(uuidString:))
+        return DayOccasion(
+            choices: OccasionRules.visible(all),
+            builtInID: OccasionRules.builtIn(all)?.id,
+            showing: OccasionRules.occasion(on: selectedDay, override: override, all),
+            automatic: OccasionRules.automatic(on: selectedDay, all)
+        )
+    }
+
+    private func occasionSwitcher(_ day: DayOccasion, showing: OccasionInfo, automatic: OccasionInfo) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            OccasionSwitcher(occasions: day.choices, selectedID: showing.id, automaticID: automatic.id) { occasion in
+                pickOccasion(occasion, automatic: automatic)
+            }
+            Text(OccasionRules.note(showing: showing, automatic: automatic, on: selectedDay))
+                .font(.footnote)
+                .foregroundStyle(.textSecondary)
+                .padding(.horizontal, 4)
+                .contentTransition(.opacity)
+        }
+        .padding(.top, -4)
+    }
+
+    /// Switching on Today lasts for the displayed day only. Picking the usual
+    /// occasion again clears the override.
+    private func pickOccasion(_ occasion: OccasionInfo, automatic: OccasionInfo) {
+        let newValue = occasion.id == automatic.id ? nil : occasion.id.uuidString
+        let current = dayLogs.lazy.compactMap(\.occasionID).first
+        guard newValue != current else { return }
+        guard let log = try? DayLog.fetchOrCreate(dayKey: dayKey, in: modelContext) else { return }
+        withAnimation(.snappy(duration: 0.25)) { log.occasionID = newValue }
+        try? modelContext.save()
+        toggleCount += 1
+    }
+
+    private func emptyOccasion(_ occasion: OccasionInfo) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Nothing in \(occasion.name) yet")
+                .font(.rowTitle)
+                .foregroundStyle(.textPrimary)
+            Text("Tag clothes with \(occasion.name) when you add or edit them.")
+                .font(.rowDetail)
+                .foregroundStyle(.textSecondary)
+            Button("Open Wardrobe") { AppRouter.shared.tab = .wardrobe }
+                .buttonStyle(.secondary)
+        }
+        .card()
+        .padding(.top, 8)
+    }
+
     // MARK: Outfit
 
     /// Everything Today shows for the selected day, worked out once per redraw.
@@ -195,17 +273,20 @@ struct TodayView: View {
         /// Items offered on the day (owned then, not inactive), favorites
         /// first, then most worn.
         var offered: [Item]
+        /// The offered items in the day's occasion: what the screen lists.
+        var shown: [Item]
         var stats: [UUID: ItemStats]
+        /// Everything worn that day, whatever its occasion.
         var selection: Set<UUID>
 
-        var dailyDrivers: [Item] { offered.filter(\.isDailyDriver) }
-        var clothes: [Item] { offered.filter { !$0.isDailyDriver } }
-        var wornCount: Int { offered.count { selection.contains($0.id) } }
+        var dailyDrivers: [Item] { shown.filter(\.isDailyDriver) }
+        var clothes: [Item] { shown.filter { !$0.isDailyDriver } }
+        var wornCount: Int { selection.count }
 
         func isWorn(_ item: Item) -> Bool { selection.contains(item.id) }
     }
 
-    private func makeOutfit() -> DayOutfit {
+    private func makeOutfit(occasion: DayOccasion? = nil) -> DayOutfit {
         let candidates = items.filter { $0.isOfferedOnToday(on: selectedDay) }
         let stats = Dictionary(candidates.map { ($0.id, $0.stats) }, uniquingKeysWith: { first, _ in first })
         let offered = candidates.sorted {
@@ -218,7 +299,11 @@ struct TodayView: View {
             isSaved: logs.contains(where: \.isSaved),
             dailyDrivers: Set(offered.filter(\.isDailyDriver).map(\.id))
         )
-        return DayOutfit(offered: offered, stats: stats, selection: selection)
+        let day = occasion ?? makeDayOccasion()
+        let shown = day.showing.map { showing in
+            offered.filter { $0.occasionIDs(builtInID: day.builtInID).contains(showing.id) }
+        } ?? offered
+        return DayOutfit(offered: offered, shown: shown, stats: stats, selection: selection)
     }
 
     private func suits(_ item: Item) -> Bool {

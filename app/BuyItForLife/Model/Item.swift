@@ -61,6 +61,8 @@ final class Item {
     @Relationship(inverse: \DayLog.items) var wornOn: [DayLog]? = []
     @Relationship(deleteRule: .cascade, inverse: \Repair.item) var repairs: [Repair]? = []
     @Relationship(deleteRule: .cascade, inverse: \PieceEvent.item) var pieceEvents: [PieceEvent]? = []
+    /// Where it's worn (see `Occasion`). Empty means Everyday.
+    var occasions: [Occasion]? = []
 
     init(
         name: String,

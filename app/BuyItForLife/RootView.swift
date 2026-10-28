@@ -43,9 +43,13 @@ struct RootView: View {
         .onAppear {
             router.tab = Self.initialTab
             showOnboarding = needsOnboarding
+            Occasion.ensureBuiltIn(in: modelContext)
         }
         .onChange(of: scenePhase) {
-            if scenePhase == .active { rescheduleReminder() }
+            guard scenePhase == .active else { return }
+            rescheduleReminder()
+            // Merges a second Everyday that another device may have synced.
+            Occasion.ensureBuiltIn(in: modelContext)
         }
         .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
             rescheduleReminder()

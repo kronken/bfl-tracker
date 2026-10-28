@@ -14,15 +14,19 @@ struct ItemFormView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Query private var occasions: [Occasion]
 
     @State private var draft: ItemDraft
     @State private var isProcessingPhoto = false
     @State private var isSaving = false
+    @State private var showNewOccasion = false
+    /// Bumped when the last occasion is tapped: it shakes instead.
+    @State private var occasionRefusals = 0
     @FocusState private var focusedField: Field?
 
     private enum Field { case name, price, wears, notes, soldPrice }
 
-    private let initialDraft: ItemDraft
+    @State private var initialDraft: ItemDraft
 
     init(mode: Mode, onSave: @escaping (Item) -> Void = { _ in }) {
         self.mode = mode
@@ -32,7 +36,7 @@ struct ItemFormView: View {
         case .edit(let item): ItemDraft(item: item)
         }
         _draft = State(initialValue: draft)
-        initialDraft = draft
+        _initialDraft = State(initialValue: draft)
     }
 
     private var isNew: Bool {
@@ -51,6 +55,7 @@ struct ItemFormView: View {
                     )
                     itemSection
                     categorySection
+                    occasionsSection
                     weatherSection
                     notesSection
                     if draft.isSold { soldSection }
@@ -81,6 +86,85 @@ struct ItemFormView: View {
         }
         .presentationBackground(.appBackground)
         .interactiveDismissDisabled(draft != initialDraft)
+        .onAppear(perform: fillInOccasions)
+        .sheet(isPresented: $showNewOccasion) {
+            OccasionSheet(mode: .new(item: draftImageContent)) { created in
+                draft.occasionIDs.insert(created.id)
+            }
+        }
+    }
+
+    // MARK: Occasions
+
+    private var occasionInfos: [OccasionInfo] { occasions.map(\.info) }
+
+    /// Items without occasions are in Everyday; a new item starts in the
+    /// default occasion.
+    private func fillInOccasions() {
+        guard draft.occasionIDs.isEmpty else { return }
+        let everyday = Occasion.ensureBuiltIn(in: modelContext)
+        let all = occasions.map(\.info)
+        let start = isNew ? (OccasionRules.defaultOccasion(all)?.id ?? everyday.id) : everyday.id
+        draft.occasionIDs = [start]
+        initialDraft.occasionIDs = [start]
+    }
+
+    private var draftImageContent: ItemImageContent {
+        ItemImageContent(imageData: draft.photo?.chosenThumbnail ?? draft.photo?.chosen,
+                         isCutout: draft.photo?.usesCutout ?? false, tintHex: draft.photo?.chosenTint,
+                         name: draft.trimmedName, category: draft.category ?? .other)
+    }
+
+    private var occasionsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel("Occasions")
+            let visible = OccasionRules.visible(occasionInfos)
+            FlowLayout(spacing: 8) {
+                ForEach(visible) { occasion in
+                    OccasionChip(title: occasion.name, isOn: draft.occasionIDs.contains(occasion.id)) {
+                        toggleOccasion(occasion.id, visible: visible)
+                    }
+                }
+                Button { showNewOccasion = true } label: {
+                    Label("New occasion", systemImage: "plus")
+                        .font(.rowDetail.weight(.medium))
+                        .foregroundStyle(.dataBlue)
+                        .padding(.horizontal, 14)
+                        .frame(minHeight: 40)
+                        .overlay { Capsule().strokeBorder(.stroke, style: StrokeStyle(lineWidth: 1, dash: [4, 3])) }
+                        .contentShape(.capsule)
+                }
+                .buttonStyle(.plain)
+            }
+            .keyframeAnimator(initialValue: 0.0, trigger: occasionRefusals) { content, offset in
+                content.offset(x: offset)
+            } keyframes: { _ in
+                KeyframeTrack {
+                    for offset in [-8.0, 7, -5, 3, 0] {
+                        CubicKeyframe(offset, duration: 0.06)
+                    }
+                }
+            }
+            .sensoryFeedback(.error, trigger: occasionRefusals)
+            Text("Shown on Today when that occasion is picked. Pick any number.")
+                .font(.footnote)
+                .foregroundStyle(.textSecondary)
+                .padding(.horizontal, 4)
+        }
+    }
+
+    /// At least one shown occasion has to stay picked.
+    private func toggleOccasion(_ id: UUID, visible: [OccasionInfo]) {
+        if draft.occasionIDs.contains(id) {
+            let remaining = draft.occasionIDs.subtracting([id])
+            guard visible.contains(where: { remaining.contains($0.id) }) else {
+                occasionRefusals += 1
+                return
+            }
+            draft.occasionIDs = remaining
+        } else {
+            draft.occasionIDs.insert(id)
+        }
     }
 
     // MARK: Sections
@@ -320,6 +404,8 @@ struct ItemFormView: View {
             item = existing
         }
         await draft.apply(to: item)
+        let tagged = occasions.filter { draft.occasionIDs.contains($0.id) }
+        if !tagged.isEmpty { item.occasions = tagged }
         updatePieceLog(of: item)
         try? modelContext.save()
         isSaving = false
@@ -379,4 +465,32 @@ struct TemperatureRangeBar: View {
     ItemFormView(mode: .new)
         .modelContainer(for: [Item.self, DayLog.self], inMemory: true)
         .preferredColorScheme(.dark)
+}
+
+/// An occasion in the item form: checkmark and fill when picked.
+struct OccasionChip: View {
+    var title: String
+    var isOn: Bool
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                if isOn {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 12, weight: .bold))
+                }
+                Text(title)
+                    .font(.rowDetail.weight(.medium))
+            }
+            .foregroundStyle(isOn ? .textPrimary : .textSecondary)
+            .padding(.horizontal, 14)
+            .frame(minHeight: 40)
+            .background(isOn ? AnyShapeStyle(.fillSelected) : AnyShapeStyle(.clear), in: .capsule)
+            .overlay { Capsule().strokeBorder(.stroke, lineWidth: 1) }
+            .contentShape(.capsule)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isOn ? .isSelected : [])
+    }
 }

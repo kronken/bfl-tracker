@@ -10,6 +10,9 @@ final class DayLog {
     /// True once the user has changed this day's outfit. Until then daily
     /// drivers are shown pre-selected; afterwards exactly `items` counts.
     var userEdited: Bool = false
+    /// The occasion picked on Today for this day only (`Occasion.id`); nil
+    /// means the automatic one.
+    var occasionID: String?
 
     // Weather snapshot
     var temperatureC: Double?
@@ -51,12 +54,22 @@ extension DayLog {
         items = current
 
         userEdited = userEdited || other.userEdited
+        if occasionID == nil { occasionID = other.occasionID }
         if temperatureC == nil {
             temperatureC = other.temperatureC
             feelsLikeC = other.feelsLikeC
             conditionRaw = other.conditionRaw
             symbolName = other.symbolName
             placeName = other.placeName
+        }
+    }
+
+    /// Clears or moves day overrides when an occasion is deleted or merged.
+    static func replaceOverrides(of occasionID: UUID, with replacement: UUID?, in context: ModelContext) {
+        let id = occasionID.uuidString
+        let descriptor = FetchDescriptor<DayLog>(predicate: #Predicate { $0.occasionID == id })
+        for log in (try? context.fetch(descriptor)) ?? [] {
+            log.occasionID = replacement?.uuidString
         }
     }
 
