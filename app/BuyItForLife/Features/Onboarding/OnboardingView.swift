@@ -154,7 +154,7 @@ private struct WelcomeStep: View {
     private var exampleCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {
-                CategoryIcon(category: .footwear)
+                CategoryIcon(iconName: StarterCategory.footwear.iconName)
                     .foregroundStyle(.textSecondary)
                     .frame(width: 44, height: 44)
                     .background(Color(hex: 0x2A1F16), in: .rect(cornerRadius: Radius.thumb))

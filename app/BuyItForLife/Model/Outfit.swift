@@ -1,41 +1,5 @@
 import Foundation
 
-/// Today's sections, top to toe. Any number of items can be picked in each.
-nonisolated enum OutfitGroup: String, CaseIterable, Identifiable, Sendable {
-    case headwear, outerwear, tops, bottoms, footwear, basics, more
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .headwear: "Headwear"
-        case .outerwear: "Outerwear"
-        case .tops: "Tops"
-        case .bottoms: "Pants"
-        case .footwear: "Shoes"
-        case .basics: "Basics"
-        case .more: "More"
-        }
-    }
-
-    init(category: ItemCategory) {
-        self = switch category {
-        case .headwear: .headwear
-        case .outerwear: .outerwear
-        case .tops, .knitwear: .tops
-        case .bottoms: .bottoms
-        case .footwear: .footwear
-        case .underwear: .basics
-        case .accessories, .other: .more
-        }
-    }
-
-    /// Identical-pieces items always go under Basics, whatever their category.
-    init(item: Item) {
-        self = item.isMultiPiece ? .basics : OutfitGroup(category: item.category)
-    }
-}
-
 /// Selection rules for a day's outfit, on item IDs so they can be tested
 /// without SwiftData.
 nonisolated enum OutfitRules {

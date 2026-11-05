@@ -109,13 +109,13 @@ struct OccasionModelTests {
     private let context: ModelContext
 
     init() throws {
-        let schema = Schema([Item.self, DayLog.self, Repair.self, PieceEvent.self, Occasion.self])
+        let schema = Schema(AppSchema.models)
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         context = ModelContext(try ModelContainer(for: schema, configurations: [config]))
     }
 
     private func item(_ name: String) -> Item {
-        let item = Item(name: name, category: .tops, purchaseDate: .now, purchasePriceCents: 1_000)
+        let item = Item(name: name, starter: .tops, purchaseDate: .now, purchasePriceCents: 1_000)
         context.insert(item)
         return item
     }

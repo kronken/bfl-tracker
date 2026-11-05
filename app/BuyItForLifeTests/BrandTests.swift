@@ -97,7 +97,7 @@ struct BrandModelTests {
     private let context: ModelContext
 
     init() throws {
-        let schema = Schema([Item.self, DayLog.self, Repair.self, PieceEvent.self, Occasion.self, Brand.self])
+        let schema = Schema(AppSchema.models)
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         context = ModelContext(try ModelContainer(for: schema, configurations: [config]))
     }
@@ -105,7 +105,7 @@ struct BrandModelTests {
     @Test func deletingABrandKeepsItsItems() {
         let brand = Brand(name: "Red Wing", countryCode: "US")
         context.insert(brand)
-        let boots = Item(name: "Boots", category: .footwear, purchaseDate: .now, purchasePriceCents: 34_900)
+        let boots = Item(name: "Boots", starter: .footwear, purchaseDate: .now, purchasePriceCents: 34_900)
         context.insert(boots)
         boots.brand = brand
         #expect(brand.itemCount == 1)
@@ -120,7 +120,7 @@ struct BrandModelTests {
     @Test func originEntryUsesTotalCostAndGiftValue() {
         let brand = Brand(name: "Hamilton", countryCode: "CH")
         context.insert(brand)
-        let watch = Item(name: "Watch", category: .accessories, purchaseDate: .now, purchasePriceCents: 49_500)
+        let watch = Item(name: "Watch", starter: .accessories, purchaseDate: .now, purchasePriceCents: 49_500)
         watch.isGift = true
         context.insert(watch)
         watch.brand = brand

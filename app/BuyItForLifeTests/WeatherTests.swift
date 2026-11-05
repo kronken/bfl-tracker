@@ -75,7 +75,7 @@ struct TodayRulesTests {
     private let calendar = Calendar.current
 
     init() throws {
-        let schema = Schema([Item.self, DayLog.self, Repair.self, PieceEvent.self])
+        let schema = Schema(AppSchema.models)
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         context = ModelContext(try ModelContainer(for: schema, configurations: [config]))
     }
@@ -85,7 +85,7 @@ struct TodayRulesTests {
     }
 
     @Test func ownedFromPurchaseUntilSaleDay() {
-        let item = Item(name: "Boots", category: .footwear, purchaseDate: day(2026, 3, 10), purchasePriceCents: 100)
+        let item = Item(name: "Boots", starter: .footwear, purchaseDate: day(2026, 3, 10), purchasePriceCents: 100)
         context.insert(item)
         #expect(!item.wasOwned(on: day(2026, 3, 9)))
         #expect(item.wasOwned(on: day(2026, 3, 10)))
@@ -95,7 +95,7 @@ struct TodayRulesTests {
     }
 
     @Test func explainsWhyAnItemDoesNotSuit() {
-        let linen = Item(name: "Linen shirt", category: .tops, purchaseDate: .now, purchasePriceCents: 100,
+        let linen = Item(name: "Linen shirt", starter: .tops, purchaseDate: .now, purchasePriceCents: 100,
                          minTempC: 20, maxTempC: 35, conditions: [.sun, .cloudy])
         context.insert(linen)
         #expect(linen.unsuitedReason(temperatureC: 3, conditions: .rain).hasPrefix("Best above 20"))

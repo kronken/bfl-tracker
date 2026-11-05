@@ -7,6 +7,7 @@ struct FirstItemStep: View {
     var onAdded: (Item) -> Void
 
     @Environment(\.modelContext) private var modelContext
+    @Query private var categories: [ClothingCategory]
 
     @State private var draft = ItemDraft()
     @State private var bands: Set<TemperatureBand> = []
@@ -28,7 +29,7 @@ struct FirstItemStep: View {
                 .padding(.horizontal, 4)
 
                 PhotoSection(photo: $draft.photo, isProcessing: $isProcessingPhoto,
-                             name: draft.name, category: draft.category)
+                             name: draft.name, iconName: categories.first { $0.id == draft.categoryID }?.iconName ?? ClothingCategory.genericIcon)
 
                 VStack(spacing: 0) {
                     FormRow(label: "Name") {
@@ -74,9 +75,9 @@ struct FirstItemStep: View {
                 VStack(alignment: .leading, spacing: 8) {
                     SectionLabel("Category")
                     FlowLayout(spacing: 8) {
-                        ForEach(ItemCategory.allCases) { category in
-                            Chip(title: category.title, isOn: draft.category == category) {
-                                draft.category = category
+                        ForEach(ClothingCategory.sorted(categories)) { category in
+                            Chip(title: category.name, isOn: draft.categoryID == category.id) {
+                                draft.categoryID = category.id
                             }
                         }
                     }
@@ -154,9 +155,10 @@ struct FirstItemStep: View {
         var draft = draft
         draft.minTempC = range.lowerBound
         draft.maxTempC = range.upperBound
-        let item = Item(name: draft.trimmedName, category: draft.category ?? .other,
-                        purchaseDate: draft.purchaseDate, purchasePriceCents: draft.priceCents ?? 0)
+        let item = Item(name: draft.trimmedName, purchaseDate: draft.purchaseDate,
+                        purchasePriceCents: draft.priceCents ?? 0)
         modelContext.insert(item)
+        item.setCategory(categories.first { $0.id == draft.categoryID })
         await draft.apply(to: item)
         try? modelContext.save()
         isSaving = false

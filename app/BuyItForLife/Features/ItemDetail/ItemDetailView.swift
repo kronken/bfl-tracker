@@ -9,6 +9,7 @@ struct ItemDetailView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var showEdit = false
+    @State private var showEditCare = false
     @State private var showMarkSold = false
     @State private var confirmDelete = false
     @State private var repairSheet: RepairSheetTarget?
@@ -43,11 +44,13 @@ struct ItemDetailView: View {
 
     // MARK: Details
 
-    private var hasDetails: Bool { item.brand != nil || item.madeInCountryCode != nil || item.size != nil }
-
     /// Brand, Made in and Size; only the ones that are set.
     private var detailsCard: some View {
+        let kind: (label: String, value: Text) = item.itemType.map { type in
+            ("Type", Text("\(Text(type.name).foregroundStyle(.textPrimary))\(Text(" · \(item.categoryName)").foregroundStyle(.textSecondary))"))
+        } ?? ("Category", Text(item.categoryName).foregroundStyle(.textPrimary))
         let rows: [(label: String, value: Text)] = [
+            kind,
             item.brand.map { brand in
                 let country = Text(brand.countryCode.map { " · \(Countries.name(for: $0))" } ?? "")
                     .foregroundStyle(.textSecondary)
@@ -82,12 +85,13 @@ struct ItemDetailView: View {
             VStack(alignment: .leading, spacing: 16) {
                 hero
                 titleBlock
-                if hasDetails { detailsCard }
+                detailsCard
                 costCard(stats)
                 statTiles(stats)
                 priceCard(stats)
                 if item.isMultiPiece { pieceLog }
                 if !(item.repairs ?? []).isEmpty { repairsSection(stats) }
+                if item.hasCare { CareSection(item: item) { showEditCare = true } }
                 WearsPerMonthCard(months: stats.wearsPerMonth())
                 weatherCard
                 if !item.notes.isEmpty { notesCard }
@@ -123,6 +127,9 @@ struct ItemDetailView: View {
         }
         .sheet(isPresented: $showEdit) {
             ItemFormView(mode: .edit(item))
+        }
+        .sheet(isPresented: $showEditCare) {
+            ItemFormView(mode: .edit(item), scrollToCare: true)
         }
         .sheet(isPresented: $showMarkSold) {
             MarkSoldView(item: item)
@@ -168,7 +175,7 @@ struct ItemDetailView: View {
                 isCutout: item.usesCutout,
                 tintHex: item.tintHex,
                 name: item.name,
-                category: item.category
+                iconName: item.categoryIconName
             ),
             cornerRadius: Radius.card,
             iconSize: 56
@@ -218,7 +225,7 @@ struct ItemDetailView: View {
     private var metaLine: String {
         let date = item.purchaseDate.formatted(date: .abbreviated, time: .omitted)
         var parts = [
-            item.category.title,
+            item.categoryName,
             item.isGift ? (item.isMultiPiece ? "Gift, first received \(date)" : "Gift, received \(date)")
                 : item.isMultiPiece ? "First bought \(date)" : "Bought \(item.boughtSecondHand ? "second-hand" : "new"), \(date)",
         ]

@@ -13,6 +13,7 @@ struct TodayView: View {
     @Query(sort: \Item.purchaseDate, order: .reverse) private var items: [Item]
     @Query private var logs: [DayLog]
     @Query private var occasions: [Occasion]
+    @Query private var categories: [ClothingCategory]
 
     @State private var selectedDay = Calendar.current.startOfDay(for: .now)
     @State private var pastWeather: WeatherSnapshot?
@@ -340,9 +341,8 @@ struct TodayView: View {
             )
             .padding(.top, 8)
         }
-        ForEach(OutfitGroup.allCases) { group in
-            let groupItems = suited.filter { OutfitGroup(item: $0) == group }
-            if !groupItems.isEmpty { groupSection(group, items: groupItems, outfit: outfit) }
+        ForEach(groups(suited)) { group in
+            groupSection(group, outfit: outfit)
         }
         if !unsuited.isEmpty, let dayWeather {
             VStack(alignment: .leading, spacing: 8) {
@@ -388,16 +388,42 @@ struct TodayView: View {
 
     // MARK: Groups
 
+    /// A category and its items for the day.
+    private struct Group: Identifiable {
+        var id: UUID
+        var title: String
+        var items: [Item]
+    }
+
+    /// The user's categories in their order, empty ones left out. Items
+    /// without a category (synced from an older version) go under Basics.
+    private func groups(_ items: [Item]) -> [Group] {
+        let ordered = ClothingCategory.sorted(categories)
+        let basicsID = ordered.first(where: \.isBuiltInBasics)?.id
+        let byCategory = Dictionary(grouping: items) { $0.category?.id ?? basicsID }
+        return ordered.compactMap { category in
+            guard let members = byCategory[category.id], !members.isEmpty else { return nil }
+            return Group(id: category.id, title: category.name, items: members)
+        }
+    }
+
     /// One category section: a title and its items. Pick as many as you like.
-    private func groupSection(_ group: OutfitGroup, items: [Item], outfit: DayOutfit) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(group.title)
-                .font(.rowTitle)
-                .foregroundStyle(.textPrimary)
-                .padding(.horizontal, 4)
-                .frame(minHeight: 44)
+    private func groupSection(_ group: Group, outfit: DayOutfit) -> some View {
+        let picked = group.items.count { outfit.isWorn($0) }
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(group.title)
+                    .font(.rowTitle)
+                    .foregroundStyle(.textPrimary)
+                Text(picked == 0 ? "Pick any" : "\(picked) picked")
+                    .font(.footnote)
+                    .foregroundStyle(.textSecondary)
+                    .contentTransition(.numericText())
+            }
+            .padding(.horizontal, 4)
+            .frame(minHeight: 44)
             VStack(spacing: 0) {
-                ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                ForEach(Array(group.items.enumerated()), id: \.element.id) { index, item in
                     if index > 0 { RowDivider() }
                     OutfitRow(item: item, detail: statsLine(outfit.stats[item.id] ?? item.stats, short: item.tagline != nil),
                               isWorn: outfit.isWorn(item), dimmed: false) {

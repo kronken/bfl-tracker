@@ -8,7 +8,12 @@ final class Item {
     // Identity
     var id: UUID = UUID()
     var name: String = ""
-    var categoryRaw: String = ItemCategory.other.rawValue
+    /// The `StarterCategory` this item had before categories became records.
+    /// Kept for older app versions on other devices; `category` is what counts.
+    var categoryRaw: String = StarterCategory.other.rawValue
+    var category: ClothingCategory?
+    /// Always one of `category`'s types, or nil.
+    var itemType: ItemType?
     var notes: String = ""
     var createdAt: Date = Date.now
     var brand: Brand?
@@ -68,10 +73,13 @@ final class Item {
     @Relationship(deleteRule: .cascade, inverse: \PieceEvent.item) var pieceEvents: [PieceEvent]? = []
     /// Where it's worn (see `Occasion`). Empty means Everyday.
     var occasions: [Occasion]? = []
+    /// Care actions that can be logged for this item. None by default.
+    var enabledCareActions: [CareAction]? = []
+    @Relationship(deleteRule: .cascade, inverse: \CareLogEntry.item) var careLog: [CareLogEntry]? = []
 
     init(
         name: String,
-        category: ItemCategory,
+        starter: StarterCategory = .other,
         purchaseDate: Date,
         purchasePriceCents: Int,
         priorWearCount: Int = 0,
@@ -81,7 +89,7 @@ final class Item {
         notes: String = ""
     ) {
         self.name = name
-        self.categoryRaw = category.rawValue
+        self.categoryRaw = starter.rawValue
         self.purchaseDate = purchaseDate
         self.purchasePriceCents = purchasePriceCents
         self.priorWearCount = priorWearCount
@@ -93,10 +101,15 @@ final class Item {
 }
 
 extension Item {
-    var category: ItemCategory {
-        get { ItemCategory(storedValue: categoryRaw) }
-        set { categoryRaw = newValue.rawValue }
+    /// Moves the item to `category`. The type is cleared unless it belongs there.
+    func setCategory(_ newValue: ClothingCategory?) {
+        if itemType?.category?.id != newValue?.id { itemType = nil }
+        category = newValue
+        categoryRaw = newValue?.seedKey ?? StarterCategory.other.rawValue
     }
+
+    var categoryName: String { category?.name ?? StarterCategory(storedValue: categoryRaw).title }
+    var categoryIconName: String { category?.iconName ?? StarterCategory(storedValue: categoryRaw).iconName }
 
     var conditions: WeatherConditions {
         get { WeatherConditions(rawValue: conditionsRaw) }

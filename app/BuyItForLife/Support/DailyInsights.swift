@@ -155,6 +155,7 @@ extension InsightContext {
             currentTempC: current,
             tomorrow: weather.tomorrow,
             paidOffTargetCents: settings.paidOffTargetCents,
+            sellSuggestionMonths: settings.sellSuggestionMonths,
             buyLess: settings.buyLessEnabled
                 ? InsightBuyLess(stats: BuyLessStats(purchases: items.flatMap(\.purchases),
                                                      enabledDate: settings.buyLessEnabledDate ?? now, now: now),
@@ -168,11 +169,16 @@ extension InsightContext {
 extension Item {
     var insightItem: InsightItem {
         InsightItem(
-            id: id, name: listName, category: category, isFavorite: isFavorite, isDailyDriver: isDailyDriver,
+            id: id, name: listName, categoryID: category?.id, categoryName: categoryName, typeID: itemType?.id,
+            typeName: itemType?.name, isFavorite: isFavorite, isDailyDriver: isDailyDriver,
             isGift: isGift, isSecondHand: boughtSecondHand, isInactive: isInactive, createdAt: createdAt,
             stats: stats, brand: brand?.name, brandCountry: brand?.countryCode, madeIn: madeInCountryCode,
             minTempC: minTempC, maxTempC: maxTempC, conditions: conditions,
-            repairs: (repairs ?? []).map { InsightItem.Repair(name: $0.name, date: $0.date, cents: $0.priceCents) }
+            repairs: (repairs ?? []).map { InsightItem.Repair(name: $0.name, date: $0.date, cents: $0.priceCents) },
+            careLog: (careLog ?? []).compactMap { entry in
+                entry.action.map { InsightItem.CareEntry(actionID: $0.id, actionName: $0.name,
+                                                         isWashing: $0.isBuiltInWashing, date: entry.date) }
+            }
         )
     }
 }

@@ -25,12 +25,6 @@ struct OutfitRulesTests {
         #expect(OutfitRules.isOrderedBefore(favoriteA: false, wearsA: 300, favoriteB: false, wearsB: 20))
         #expect(!OutfitRules.isOrderedBefore(favoriteA: false, wearsA: 20, favoriteB: false, wearsB: 300))
     }
-
-    @Test func categoriesMapToGroups() {
-        #expect(OutfitGroup(category: .knitwear) == .tops)
-        #expect(OutfitGroup(category: .bottoms) == .bottoms)
-        #expect(OutfitGroup(category: .accessories) == .more)
-    }
 }
 
 struct ReminderPlannerTests {
@@ -68,7 +62,7 @@ struct SellSuggestionTests {
     private let calendar = Calendar.current
 
     init() throws {
-        let schema = Schema([Item.self, DayLog.self, Repair.self, PieceEvent.self])
+        let schema = Schema(AppSchema.models)
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         context = ModelContext(try ModelContainer(for: schema, configurations: [config]))
     }
@@ -78,7 +72,7 @@ struct SellSuggestionTests {
     }
 
     private func item(bought: Date, added: Date, dailyDriver: Bool = false) -> Item {
-        let item = Item(name: "Chinos", category: .bottoms, purchaseDate: bought, purchasePriceCents: 10_000)
+        let item = Item(name: "Chinos", starter: .bottoms, purchaseDate: bought, purchasePriceCents: 10_000)
         item.createdAt = added
         item.isDailyDriver = dailyDriver
         context.insert(item)

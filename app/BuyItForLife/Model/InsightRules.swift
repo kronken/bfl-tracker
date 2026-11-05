@@ -5,7 +5,9 @@ import Foundation
 // shames. All wording lives in `InsightCopy` at the bottom.
 
 nonisolated enum InsightRules {
-    static let all: [any InsightRule] = [
+    static let all: [any InsightRule] = starter + kindsAndCare
+
+    static let starter: [any InsightRule] = [
         // Value & milestones
         PaidOffTodayRule(), CloseToTargetRule(), RoundWearsRule(), AnniversaryRule(), CostPerDayTrendRule(),
         CheapestPerWearRule(),

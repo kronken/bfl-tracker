@@ -68,13 +68,13 @@ struct IdenticalPiecesTests {
     private let context: ModelContext
 
     init() throws {
-        let schema = Schema([Item.self, DayLog.self, Repair.self, PieceEvent.self])
+        let schema = Schema(AppSchema.models)
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         context = ModelContext(try ModelContainer(for: schema, configurations: [config]))
     }
 
     private func boxers() -> Item {
-        let item = Item(name: "Cotton boxers", category: .underwear, purchaseDate: .now, purchasePriceCents: 0)
+        let item = Item(name: "Cotton boxers", starter: .underwear, purchaseDate: .now, purchasePriceCents: 0)
         item.isMultiPiece = true
         context.insert(item)
         let calendar = Calendar.current
@@ -124,12 +124,5 @@ struct IdenticalPiecesTests {
         retire.item = item
         #expect(item.piecesInUse == 0)
         #expect(!item.isOfferedOnToday(on: .now))
-    }
-
-    @Test func identicalPiecesGoUnderBasics() {
-        let item = boxers()
-        item.category = .tops
-        #expect(OutfitGroup(item: item) == .basics)
-        #expect(OutfitGroup(category: .underwear) == .basics)
     }
 }

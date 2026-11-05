@@ -7,7 +7,8 @@ struct PhotoSection: View {
     @Binding var photo: DraftPhoto?
     @Binding var isProcessing: Bool
     var name: String
-    var category: ItemCategory?
+    /// The chosen category's icon, for the preview without a photo.
+    var iconName: String
 
     @State private var showCamera = false
     @State private var showLibrary = false
@@ -92,7 +93,7 @@ struct PhotoSection: View {
                     isCutout: photo.usesCutout,
                     tintHex: photo.chosenTint,
                     name: name,
-                    category: category ?? .other
+                    iconName: iconName
                 ),
                 cornerRadius: Radius.card,
                 iconSize: 48

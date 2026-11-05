@@ -7,15 +7,23 @@ struct WardrobeView: View {
     /// The chip row: everything, favorites, or one category.
     private enum Filter: Hashable {
         case all, favorites
-        case category(ItemCategory)
+        case category(UUID)
+    }
+
+    /// The second row under a category: its types.
+    private enum TypeFilter: Hashable {
+        case all, untyped
+        case type(UUID)
     }
 
     @Environment(AppSettings.self) private var settings
     @Query(sort: \Item.purchaseDate, order: .reverse) private var items: [Item]
     @Query private var brands: [Brand]
+    @Query private var categories: [ClothingCategory]
 
     @State private var shelf: Shelf = .owned
     @State private var filter: Filter = .all
+    @State private var typeFilter: TypeFilter = .all
     /// Brand filter for this session only; combines with `filter`.
     @State private var brandID: UUID?
     @State private var showBrandFilter = false
@@ -49,6 +57,7 @@ struct WardrobeView: View {
                         sellList
                     } else {
                         categoryChips
+                        typeChips
                         grid
                     }
                 }
@@ -58,8 +67,10 @@ struct WardrobeView: View {
                 ItemDetailView(item: item)
             }
         }
+        .onChange(of: filter) { typeFilter = .all }
         .onChange(of: shelf) {
             filter = .all
+            typeFilter = .all
             // Keep the brand only if it has items in the new tab.
             if let brandID, shelf != .toSell, !onShelf.contains(where: { $0.brand?.id == brandID }) {
                 self.brandID = nil
@@ -94,6 +105,11 @@ struct WardrobeView: View {
                 brandID = brands.first { $0.name == name }?.id
             }
             if UserDefaults.standard.bool(forKey: "openBrandFilter") { showBrandFilter = true }
+            // `-wardrobeCategory <name>` picks that category chip.
+            if let name = UserDefaults.standard.string(forKey: "wardrobeCategory"),
+               let category = categories.first(where: { $0.name == name }) {
+                filter = .category(category.id)
+            }
             // `-openItemDetail YES` opens the most worn item; any other value
             // opens the first item whose name starts with it.
             if let wanted = UserDefaults.standard.string(forKey: "openItemDetail") {
@@ -137,14 +153,22 @@ struct WardrobeView: View {
     }
 
     private var visible: [Item] {
-        inBrand.filter { matches($0, filter) && matchesSearch($0) }
+        inBrand.filter { matches($0, filter) && matchesType($0) && matchesSearch($0) }
+    }
+
+    private func matchesType(_ item: Item) -> Bool {
+        switch typeFilter {
+        case .all: true
+        case .untyped: item.itemType == nil
+        case .type(let id): item.itemType?.id == id
+        }
     }
 
     private func matches(_ item: Item, _ filter: Filter) -> Bool {
         switch filter {
         case .all: true
         case .favorites: item.isFavorite
-        case .category(let category): item.category == category
+        case .category(let id): item.category?.id == id
         }
     }
 
@@ -153,7 +177,8 @@ struct WardrobeView: View {
         guard !query.isEmpty else { return true }
         let options: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive]
         return item.name.range(of: query, options: options) != nil
-            || item.category.title.range(of: query, options: options) != nil
+            || item.categoryName.range(of: query, options: options) != nil
+            || item.itemType?.name.range(of: query, options: options) != nil
             || item.brand?.name.range(of: query, options: options) != nil
     }
 
@@ -180,10 +205,10 @@ struct WardrobeView: View {
     /// this shelf.
     private var categoryChips: some View {
         let shown = inBrand
-        let present = ItemCategory.allCases.compactMap { category -> (ItemCategory, Int)? in
-            let count = shown.count { $0.category == category }
+        let present = ClothingCategory.sorted(categories).compactMap { category -> (ClothingCategory, Int)? in
+            let count = shown.count { $0.category?.id == category.id }
             // The picked category stays, even at 0, so it can be seen and changed.
-            return count > 0 || filter == .category(category) ? (category, count) : nil
+            return count > 0 || filter == .category(category.id) ? (category, count) : nil
         }
         return ScrollView(.horizontal) {
             HStack(spacing: 8) {
@@ -199,9 +224,9 @@ struct WardrobeView: View {
                     Chip(title: "Favorites \(shown.count(where: \.isFavorite))", isOn: filter == .favorites,
                          height: 36) { filter = .favorites }
                 }
-                ForEach(present, id: \.0) { category, count in
-                    Chip(title: "\(category.title) \(count)", isOn: filter == .category(category), height: 36) {
-                        filter = .category(category)
+                ForEach(present, id: \.0.id) { category, count in
+                    Chip(title: "\(category.name) \(count)", isOn: filter == .category(category.id), height: 36) {
+                        filter = .category(category.id)
                     }
                 }
             }
@@ -209,6 +234,39 @@ struct WardrobeView: View {
         }
         .scrollIndicators(.hidden)
         .padding(.horizontal, -16)
+    }
+
+    /// Types of the picked category, when some of its items in view have one.
+    @ViewBuilder
+    private var typeChips: some View {
+        if case .category(let id) = filter, let category = categories.first(where: { $0.id == id }) {
+            let inCategory = inBrand.filter { $0.category?.id == id && matchesSearch($0) }
+            let typed = inCategory.filter { $0.itemType != nil }
+            if !typed.isEmpty {
+                ScrollView(.horizontal) {
+                    HStack(spacing: 6) {
+                        TypeChip(title: "All \(inCategory.count)", isOn: typeFilter == .all) { typeFilter = .all }
+                        ForEach(category.sortedTypes) { type in
+                            let count = inCategory.count { $0.itemType?.id == type.id }
+                            if count > 0 {
+                                TypeChip(title: "\(type.name) \(count)", isOn: typeFilter == .type(type.id)) {
+                                    typeFilter = .type(type.id)
+                                }
+                            }
+                        }
+                        if typed.count < inCategory.count {
+                            TypeChip(title: "No type \(inCategory.count - typed.count)", isOn: typeFilter == .untyped) {
+                                typeFilter = .untyped
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                }
+                .scrollIndicators(.hidden)
+                .padding(.horizontal, -16)
+                .padding(.top, -6)
+            }
+        }
     }
 
     @ViewBuilder
@@ -257,7 +315,7 @@ struct WardrobeView: View {
         switch filter {
         case .all: shelf == .sold ? "Sold" : "Owned"
         case .favorites: "Favorites"
-        case .category(let category): category.title
+        case .category(let id): categories.first { $0.id == id }?.name ?? "this category"
         }
     }
 
@@ -499,4 +557,25 @@ struct SellSuggestionRow: View {
         .environment(AppSettings())
         .modelContainer(for: [Item.self, DayLog.self], inMemory: true)
         .preferredColorScheme(.dark)
+}
+
+/// The smaller chip in Wardrobe's type row.
+struct TypeChip: View {
+    var title: String
+    var isOn: Bool
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(isOn ? Color.appBackground : .textSecondary)
+                .padding(.horizontal, 12)
+                .frame(minHeight: 32)
+                .background(isOn ? AnyShapeStyle(.textPrimary) : AnyShapeStyle(.fillSelected), in: .capsule)
+                .contentShape(.capsule)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isOn ? .isSelected : [])
+    }
 }

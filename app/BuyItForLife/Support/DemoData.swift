@@ -15,7 +15,7 @@ enum DemoData {
     static var isLarge: Bool { UserDefaults.standard.bool(forKey: "demoLarge") }
 
     static func makeContainer() -> ModelContainer {
-        let schema = Schema([Item.self, DayLog.self, Repair.self, PieceEvent.self, Occasion.self, Brand.self])
+        let schema = Schema(AppSchema.models)
         let configuration: ModelConfiguration
         if isLarge {
             let url = URL.temporaryDirectory.appending(path: "demo-\(UUID().uuidString).store")
@@ -27,6 +27,9 @@ enum DemoData {
         insertSamples(into: container.mainContext)
         if UserDefaults.standard.bool(forKey: "demoOccasions") { insertOccasions(into: container.mainContext) }
         if UserDefaults.standard.bool(forKey: "demoBrands") { insertBrands(into: container.mainContext) }
+        // Categories from the items' starter categories, as for an upgrading user.
+        ClothingCategory.ensureSetup(in: container.mainContext, defaults: UserDefaults(suiteName: "demo-\(UUID())")!)
+        if UserDefaults.standard.bool(forKey: "demoCare") { insertTypesAndCare(into: container.mainContext) }
         if isLarge { insertLargeWardrobe(into: container.mainContext) }
         try? container.mainContext.save()
         return container
@@ -36,9 +39,9 @@ enum DemoData {
     /// realistic size (1200 px original, cutout and 600 px thumbnail).
     private static func insertLargeWardrobe(into context: ModelContext) {
         let existing = (try? context.fetch(FetchDescriptor<Item>())) ?? []
-        let categories: [ItemCategory] = [.tops, .knitwear, .bottoms, .outerwear, .footwear, .headwear, .underwear]
+        let categories: [StarterCategory] = [.tops, .knitwear, .bottoms, .outerwear, .footwear, .headwear, .underwear]
         for index in existing.count..<43 {
-            let item = Item(name: "Demo item \(index + 1)", category: categories[index % categories.count],
+            let item = Item(name: "Demo item \(index + 1)", starter: categories[index % categories.count],
                             purchaseDate: date(2022, 1 + index % 12), purchasePriceCents: 5_000 + index * 700,
                             priorWearCount: index * 3)
             context.insert(item)
@@ -79,7 +82,7 @@ enum DemoData {
     }
 
     static func insertSamples(into context: ModelContext) {
-        let samples: [(String, ItemCategory, Date, Int, Int, Int, Int, WeatherConditions, String)] = [
+        let samples: [(String, StarterCategory, Date, Int, Int, Int, Int, WeatherConditions, String)] = [
             ("Leather work boots", .footwear, date(2020, 3, 14), 349, 243, -25, 15, .all, "#2A1F16"),
             ("Raw denim jeans", .bottoms, date(2020, 5), 110, 298, -30, 25, .all, "#151B2B"),
             ("Wool mackinaw jacket", .outerwear, date(2021, 1), 395, 141, -20, 10, [.sun, .cloudy, .snow, .wind], "#2B1B1B"),
@@ -91,7 +94,7 @@ enum DemoData {
         ]
         var owned: [Item] = []
         for (name, category, bought, price, wears, low, high, conditions, tint) in samples {
-            let item = Item(name: name, category: category, purchaseDate: bought, purchasePriceCents: price * 100,
+            let item = Item(name: name, starter: category, purchaseDate: bought, purchasePriceCents: price * 100,
                             priorWearCount: wears, minTempC: low, maxTempC: high, conditions: conditions)
             item.tintHex = tint
             context.insert(item)
@@ -105,7 +108,7 @@ enum DemoData {
 
         // More jeans, so Pants has something to pick between.
         for (name, price, wears, tint) in [("Selvedge jeans", 200, 41, "#141A26"), ("Black jeans", 140, 23, "#161C22")] {
-            let jeans = Item(name: name, category: .bottoms, purchaseDate: date(2024, 4), purchasePriceCents: price * 100,
+            let jeans = Item(name: name, starter: .bottoms, purchaseDate: date(2024, 4), purchasePriceCents: price * 100,
                              priorWearCount: wears, minTempC: -30, maxTempC: 25)
             jeans.tintHex = tint
             context.insert(jeans)
@@ -117,7 +120,7 @@ enum DemoData {
         var drivers: [Item] = []
         for (name, price, wears, tint) in [("Field watch", 495, 1620, "#2A2A2E"), ("Leather belt", 130, 1400, "#2A1D14"),
                                            ("Card wallet", 89, 2100, "#1E1A17")] {
-            let item = Item(name: name, category: .accessories, purchaseDate: date(2020, 6), purchasePriceCents: price * 100,
+            let item = Item(name: name, starter: .accessories, purchaseDate: date(2020, 6), purchasePriceCents: price * 100,
                             priorWearCount: wears)
             item.tintHex = tint
             item.isDailyDriver = true
@@ -133,7 +136,7 @@ enum DemoData {
             repair.item = owned[0]
         }
         // Identical pieces: a set of boxers.
-        let boxers = Item(name: "Cotton boxers", category: .underwear, purchaseDate: date(2023, 1, 14),
+        let boxers = Item(name: "Cotton boxers", starter: .underwear, purchaseDate: date(2023, 1, 14),
                           purchasePriceCents: 0, priorWearCount: 600)
         boxers.isMultiPiece = true
         boxers.tintHex = "#1D1F26"
@@ -147,15 +150,15 @@ enum DemoData {
         boxers.syncFromPieceEvents()
 
         // Recent purchases, so the monthly spend chart has something to show.
-        for (name, category, monthsAgo, price) in [("Merino tee", ItemCategory.tops, 2, 85), ("Wool beanie", .headwear, 5, 45)] {
-            let recent = Item(name: name, category: category,
+        for (name, category, monthsAgo, price) in [("Merino tee", StarterCategory.tops, 2, 85), ("Wool beanie", .headwear, 5, 45)] {
+            let recent = Item(name: name, starter: category,
                               purchaseDate: Calendar.current.date(byAdding: .month, value: -monthsAgo, to: .now)!,
                               purchasePriceCents: price * 100, priorWearCount: 10, minTempC: -20, maxTempC: 20)
             context.insert(recent)
         }
 
         // Not worn since it was added over a year ago: a sell suggestion.
-        let chinos = Item(name: "Stone chinos", category: .bottoms, purchaseDate: date(2023, 5), purchasePriceCents: 9_500,
+        let chinos = Item(name: "Stone chinos", starter: .bottoms, purchaseDate: date(2023, 5), purchasePriceCents: 9_500,
                           priorWearCount: 12, minTempC: 5, maxTempC: 28)
         chinos.tintHex = "#25231D"
         context.insert(chinos)
@@ -175,7 +178,7 @@ enum DemoData {
             ("Black leather boots", date(2020, 2), 170, 230, date(2025, 6, 2), 45, "#1C1714"),
         ]
         for (name, bought, price, wears, soldOn, soldFor, tint) in sold {
-            let item = Item(name: name, category: .footwear, purchaseDate: bought, purchasePriceCents: price * 100,
+            let item = Item(name: name, starter: .footwear, purchaseDate: bought, purchasePriceCents: price * 100,
                             priorWearCount: wears, minTempC: -20, maxTempC: 15)
             item.soldDate = soldOn
             item.soldPriceCents = soldFor * 100
@@ -235,6 +238,52 @@ enum DemoData {
             item.madeInCountryCode = assignment.madeIn
             item.size = assignment.size
         }
+    }
+
+    /// `-demoCare YES`: a few types, and oiling and waxing logged on the boots
+    /// and the waxed jacket.
+    private static func insertTypesAndCare(into context: ModelContext) {
+        let categories = (try? context.fetch(FetchDescriptor<ClothingCategory>())) ?? []
+        let items = (try? context.fetch(FetchDescriptor<Item>())) ?? []
+        func item(_ name: String) -> Item? { items.first { $0.name == name } }
+        func category(_ seed: StarterCategory) -> ClothingCategory? { categories.first { $0.seedKey == seed.rawValue } }
+
+        if let footwear = category(.footwear) {
+            let boots = ItemType.create(name: "Leather boots", in: footwear, context: context)
+            let sandals = ItemType.create(name: "Sandals", in: footwear, context: context)
+            for name in ["Leather work boots", "Service boots", "Black leather boots"] { item(name)?.itemType = boots }
+            item("Leather sandals")?.itemType = sandals
+        }
+        if let bottoms = category(.bottoms) {
+            let jeans = ItemType.create(name: "Jeans", in: bottoms, context: context)
+            for name in ["Raw denim jeans", "Selvedge jeans", "Black jeans"] { item(name)?.itemType = jeans }
+        }
+        if let outerwear = category(.outerwear) {
+            let waxed = ItemType.create(name: "Waxed jackets", in: outerwear, context: context)
+            _ = ItemType.create(name: "Wool jackets", in: outerwear, context: context)
+            item("Waxed cotton jacket")?.itemType = waxed
+        }
+
+        let washing = CareAction.ensureWashing(in: context)
+        let oiling = CareAction.create(name: "Oiling", in: context)
+        let waxing = CareAction.create(name: "Waxing", in: context)
+        let log: [(String, CareAction, [Int], String?)] = [
+            ("Leather work boots", oiling, [25, 90, 160, 230, 300], "Mink oil, two thin coats"),
+            ("Waxed cotton jacket", waxing, [40, 400], nil),
+            ("Linen shirt", washing, [3, 10], nil),
+        ]
+        for (name, action, daysAgo, note) in log {
+            guard let target = item(name) else { continue }
+            target.enabledCareActions = (target.enabledCareActions ?? []) + [action]
+            for (index, days) in daysAgo.enumerated() {
+                let entry = CareLogEntry(date: Calendar.current.date(byAdding: .day, value: -days, to: .now)!,
+                                         note: index == 0 ? note : nil)
+                context.insert(entry)
+                entry.item = target
+                entry.action = action
+            }
+        }
+        item("Leather work boots")?.enabledCareActions?.append(waxing)
     }
 
     /// A year of logged wears for the boots and jeans, heaviest in winter,

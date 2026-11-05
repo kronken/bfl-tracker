@@ -46,9 +46,12 @@ struct RootView: View {
             router.tab = Self.initialTab
             showOnboarding = needsOnboarding
             Occasion.ensureBuiltIn(in: modelContext)
+            ClothingCategory.ensureSetup(in: modelContext)
         }
         .onChange(of: scenePhase) {
             guard scenePhase == .active else { return }
+            // Merges copies another device synced, and files items from older versions.
+            ClothingCategory.ensureSetup(in: modelContext)
             rescheduleReminder()
             // Merges a second Everyday that another device may have synced.
             Occasion.ensureBuiltIn(in: modelContext)

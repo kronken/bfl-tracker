@@ -66,7 +66,12 @@ struct ItemDraft: Equatable {
     var hasPieceLog = false
     /// More than one log entry: the switch can no longer be turned off.
     var pieceLogLocked = false
-    var category: ItemCategory?
+    /// `ClothingCategory.id`.
+    var categoryID: UUID?
+    /// `ItemType.id`, one of the category's types.
+    var typeID: UUID?
+    /// `CareAction.id`s turned on for the item.
+    var careActionIDs: Set<UUID> = []
     /// `Occasion.id`s. Empty only until the form fills in the default.
     var occasionIDs: Set<UUID> = []
     var minTempC = -30
@@ -102,7 +107,9 @@ struct ItemDraft: Equatable {
         let events = item.pieceEvents ?? []
         hasPieceLog = item.isMultiPiece && !events.isEmpty
         pieceLogLocked = item.isMultiPiece && events.count > 1
-        category = item.category
+        categoryID = item.category?.id
+        typeID = item.itemType?.id
+        careActionIDs = Set((item.enabledCareActions ?? []).map(\.id))
         occasionIDs = Set((item.occasions ?? []).map(\.id))
         minTempC = item.minTempC
         maxTempC = item.maxTempC
@@ -122,7 +129,7 @@ struct ItemDraft: Equatable {
 
     var isValid: Bool {
         // A gift's value may be left empty (counts as 0).
-        !trimmedName.isEmpty && category != nil && (priceCents != nil || isGift) && (!isSold || soldPriceCents != nil)
+        !trimmedName.isEmpty && categoryID != nil && (priceCents != nil || isGift) && (!isSold || soldPriceCents != nil)
     }
 
     // MARK: Temperature range, in 5° steps, at least 5° wide
@@ -154,7 +161,6 @@ struct ItemDraft: Equatable {
         item.isDailyDriver = isDailyDriver
         item.isInactive = isInactive
         item.isMultiPiece = isMultiPiece
-        item.category = category ?? .other
         item.minTempC = minTempC
         item.maxTempC = maxTempC
         item.conditions = conditions

@@ -9,7 +9,7 @@ struct GiftTests {
     private let calendar = Calendar.current
 
     init() throws {
-        let schema = Schema([Item.self, DayLog.self, Repair.self, PieceEvent.self])
+        let schema = Schema(AppSchema.models)
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         context = ModelContext(try ModelContainer(for: schema, configurations: [config]))
     }
@@ -17,7 +17,7 @@ struct GiftTests {
     private func daysAgo(_ days: Int) -> Date { calendar.date(byAdding: .day, value: -days, to: .now)! }
 
     private func watch(gift: Bool) -> Item {
-        let item = Item(name: "Field watch", category: .accessories, purchaseDate: daysAgo(400),
+        let item = Item(name: "Field watch", starter: .accessories, purchaseDate: daysAgo(400),
                         purchasePriceCents: 49_500, priorWearCount: 495)
         item.isGift = gift
         context.insert(item)
@@ -66,7 +66,7 @@ struct GiftTests {
     }
 
     @Test func giftedSetFirstEventIsGiftButAddMoreIsAPurchase() {
-        let socks = Item(name: "Wool socks", category: .underwear, purchaseDate: daysAgo(100), purchasePriceCents: 0)
+        let socks = Item(name: "Wool socks", starter: .underwear, purchaseDate: daysAgo(100), purchasePriceCents: 0)
         socks.isMultiPiece = true
         socks.isGift = true
         context.insert(socks)

@@ -8,12 +8,14 @@ struct ItemImageContent: Equatable {
     var isCutout: Bool
     var tintHex: String?
     var name: String
-    var category: ItemCategory
+    /// The category's icon, shown when there's no photo.
+    var iconName: String
 }
 
 extension Item {
     var thumbnailContent: ItemImageContent {
-        ItemImageContent(imageData: thumbnail, isCutout: usesCutout, tintHex: tintHex, name: name, category: category)
+        ItemImageContent(imageData: thumbnail, isCutout: usesCutout, tintHex: tintHex, name: name,
+                         iconName: categoryIconName)
     }
 }
 
@@ -42,7 +44,7 @@ struct ItemImageView: View {
                         .scaledToFill()
                 }
             } else if content.imageData == nil {
-                CategoryIcon(category: content.category, size: iconSize)
+                CategoryIcon(iconName: content.iconName, size: iconSize)
                     .foregroundStyle(.textSecondary)
             }
         }
@@ -77,16 +79,24 @@ struct ItemImageView: View {
 }
 
 /// A category's line icon, drawn in the current foreground style.
+/// A category's icon: the app's own artwork for the starter categories, an
+/// SF Symbol for the user's own.
 struct CategoryIcon: View {
-    var category: ItemCategory
+    var iconName: String
     var size: CGFloat = 24
 
     var body: some View {
-        Image("Categories/\(category.rawValue)")
-            .renderingMode(.template)
-            .resizable()
-            .scaledToFit()
-            .frame(width: size, height: size)
+        if UIImage(named: iconName) != nil {
+            Image(iconName)
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .frame(width: size, height: size)
+        } else {
+            Image(systemName: iconName)
+                .font(.system(size: size * 0.8, weight: .regular))
+                .frame(width: size, height: size)
+        }
     }
 }
 

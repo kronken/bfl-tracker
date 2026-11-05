@@ -37,8 +37,8 @@ struct DayKeyTests {
 
 struct CategoryAndConditionTests {
     @Test func unknownCategoryFallsBackToOther() {
-        #expect(ItemCategory(storedValue: "swimwear") == .other)
-        #expect(ItemCategory(storedValue: "knitwear") == .knitwear)
+        #expect(StarterCategory(storedValue: "swimwear") == .other)
+        #expect(StarterCategory(storedValue: "knitwear") == .knitwear)
     }
 
     @Test func conditionBitsAreStable() {
@@ -57,13 +57,13 @@ struct ItemAndDayLogTests {
     private let context: ModelContext
 
     init() throws {
-        let schema = Schema([Item.self, DayLog.self, Repair.self, PieceEvent.self])
+        let schema = Schema(AppSchema.models)
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         context = ModelContext(try ModelContainer(for: schema, configurations: [config]))
     }
 
     private func makeItem(min: Int = -25, max: Int = 15, conditions: WeatherConditions = .all) -> Item {
-        let item = Item(name: "Red Wing Iron Ranger 8111", category: .footwear, purchaseDate: .now,
+        let item = Item(name: "Red Wing Iron Ranger 8111", starter: .footwear, purchaseDate: .now,
                         purchasePriceCents: 34_900, minTempC: min, maxTempC: max, conditions: conditions)
         context.insert(item)
         return item

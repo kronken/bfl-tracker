@@ -9,6 +9,8 @@ struct ItemFormView: View {
     }
 
     let mode: Mode
+    /// Opens the form scrolled to the Care section ("Choose actions").
+    var scrollToCare = false
     /// Called with the saved item after Add or Save.
     var onSave: (Item) -> Void = { _ in }
 
@@ -17,6 +19,8 @@ struct ItemFormView: View {
     @Query private var occasions: [Occasion]
     @Query private var brands: [Brand]
     @Query private var allItems: [Item]
+    @Query private var categoryRecords: [ClothingCategory]
+    @Query private var careActions: [CareAction]
 
     @State private var draft: ItemDraft
     @State private var isProcessingPhoto = false
@@ -24,6 +28,9 @@ struct ItemFormView: View {
     @State private var showNewOccasion = false
     @State private var showBrandPicker = false
     @State private var showMadeIn = false
+    @State private var showNewCategory = false
+    @State private var showNewType = false
+    @State private var showNewCareAction = false
     /// Bumped when the last occasion is tapped: it shakes instead.
     @State private var occasionRefusals = 0
     @FocusState private var focusedField: Field?
@@ -32,8 +39,9 @@ struct ItemFormView: View {
 
     @State private var initialDraft: ItemDraft
 
-    init(mode: Mode, onSave: @escaping (Item) -> Void = { _ in }) {
+    init(mode: Mode, scrollToCare: Bool = false, onSave: @escaping (Item) -> Void = { _ in }) {
         self.mode = mode
+        self.scrollToCare = scrollToCare
         self.onSave = onSave
         let draft: ItemDraft = switch mode {
         case .new: ItemDraft()
@@ -49,24 +57,31 @@ struct ItemFormView: View {
 
     var body: some View {
         NavigationStack {
+            ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     PhotoSection(
                         photo: $draft.photo,
                         isProcessing: $isProcessingPhoto,
                         name: draft.name,
-                        category: draft.category
+                        iconName: selectedCategory?.iconName ?? ClothingCategory.genericIcon
                     )
                     itemSection
                     categorySection
+                    if selectedCategory != nil { typeSection }
                     occasionsSection
                     weatherSection
+                    careSection.id("care")
                     notesSection
                     if draft.isSold { soldSection }
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
                 .padding(.bottom, 32)
+            }
+            .onAppear {
+                if scrollToCare { proxy.scrollTo("care", anchor: .top) }
+            }
             }
             .scrollDismissesKeyboard(.interactively)
             .background(.appBackground)
@@ -91,6 +106,17 @@ struct ItemFormView: View {
         .presentationBackground(.appBackground)
         .interactiveDismissDisabled(draft != initialDraft)
         .onAppear(perform: fillInOccasions)
+        .sheet(isPresented: $showNewCategory) {
+            CategorySheet { created in pickCategory(created.id) }
+        }
+        .sheet(isPresented: $showNewType) {
+            if let category = selectedCategory {
+                TypeSheet(mode: .new(category)) { created in draft.typeID = created.id }
+            }
+        }
+        .sheet(isPresented: $showNewCareAction) {
+            CareActionSheet(mode: .new) { created in draft.careActionIDs.insert(created.id) }
+        }
         .sheet(isPresented: $showBrandPicker) {
             BrandPicker(selectedID: draft.brandID, item: draftImageContent) { draft.brandID = $0?.id }
         }
@@ -149,7 +175,8 @@ struct ItemFormView: View {
     private var draftImageContent: ItemImageContent {
         ItemImageContent(imageData: draft.photo?.chosenThumbnail ?? draft.photo?.chosen,
                          isCutout: draft.photo?.usesCutout ?? false, tintHex: draft.photo?.chosenTint,
-                         name: draft.trimmedName, category: draft.category ?? .other)
+                         name: draft.trimmedName,
+                         iconName: selectedCategory?.iconName ?? ClothingCategory.genericIcon)
     }
 
     private var occasionsSection: some View {
@@ -162,16 +189,7 @@ struct ItemFormView: View {
                         toggleOccasion(occasion.id, visible: visible)
                     }
                 }
-                Button { showNewOccasion = true } label: {
-                    Label("New occasion", systemImage: "plus")
-                        .font(.rowDetail.weight(.medium))
-                        .foregroundStyle(.dataBlue)
-                        .padding(.horizontal, 14)
-                        .frame(minHeight: 40)
-                        .overlay { Capsule().strokeBorder(.stroke, style: StrokeStyle(lineWidth: 1, dash: [4, 3])) }
-                        .contentShape(.capsule)
-                }
-                .buttonStyle(.plain)
+                DashedAddChip(title: "New occasion") { showNewOccasion = true }
             }
             .keyframeAnimator(initialValue: 0.0, trigger: occasionRefusals) { content, offset in
                 content.offset(x: offset)
@@ -299,16 +317,67 @@ struct ItemFormView: View {
         }
     }
 
+    // MARK: Category, type, care
+
+    private var orderedCategories: [ClothingCategory] { ClothingCategory.sorted(categoryRecords) }
+
+    private var selectedCategory: ClothingCategory? {
+        draft.categoryID.flatMap { id in categoryRecords.first { $0.id == id } }
+    }
+
     private var categorySection: some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionLabel("Category")
             FlowLayout(spacing: 8) {
-                ForEach(ItemCategory.allCases) { category in
-                    Chip(title: category.title, isOn: draft.category == category) {
-                        draft.category = category
+                ForEach(orderedCategories) { category in
+                    Chip(title: category.name, isOn: draft.categoryID == category.id) { pickCategory(category.id) }
+                }
+                DashedAddChip(title: "New category") { showNewCategory = true }
+            }
+        }
+    }
+
+    /// Changing the category clears the type.
+    private func pickCategory(_ id: UUID) {
+        guard draft.categoryID != id else { return }
+        draft.categoryID = id
+        draft.typeID = nil
+    }
+
+    private var typeSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel("Type · \(selectedCategory?.name ?? "")")
+            FlowLayout(spacing: 8) {
+                ForEach(selectedCategory?.sortedTypes ?? []) { type in
+                    OccasionChip(title: type.name, isOn: draft.typeID == type.id) {
+                        // Optional: tapping the picked type again clears it.
+                        draft.typeID = draft.typeID == type.id ? nil : type.id
                     }
                 }
+                DashedAddChip(title: "New type") { showNewType = true }
             }
+            Text("Optional. Lets you see how many of one kind you own.")
+                .font(.footnote)
+                .foregroundStyle(.textSecondary)
+                .padding(.horizontal, 4)
+        }
+    }
+
+    private var careSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel("Care")
+            FlowLayout(spacing: 8) {
+                ForEach(CareAction.sorted(careActions)) { action in
+                    OccasionChip(title: action.name, isOn: draft.careActionIDs.contains(action.id)) {
+                        draft.careActionIDs.formSymmetricDifference([action.id])
+                    }
+                }
+                DashedAddChip(title: "New action") { showNewCareAction = true }
+            }
+            Text("Turn on the care you want to log for this item. None are on until you pick them.")
+                .font(.footnote)
+                .foregroundStyle(.textSecondary)
+                .padding(.horizontal, 4)
         }
     }
 
@@ -353,7 +422,7 @@ struct ItemFormView: View {
     private var notesSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionLabel("Notes")
-            TextField("Notes", text: $draft.notes, prompt: Text("Fit, care, anything else").foregroundStyle(.textTertiary),
+            TextField("Notes", text: $draft.notes, prompt: Text("Fit, anything else").foregroundStyle(.textTertiary),
                       axis: .vertical)
                 .lineLimit(3...10)
                 .focused($focusedField, equals: .notes)
@@ -462,14 +531,17 @@ struct ItemFormView: View {
         let item: Item
         switch mode {
         case .new:
-            item = Item(name: draft.trimmedName, category: draft.category ?? .other,
-                        purchaseDate: draft.purchaseDate, purchasePriceCents: draft.priceCents ?? 0)
+            item = Item(name: draft.trimmedName, purchaseDate: draft.purchaseDate,
+                        purchasePriceCents: draft.priceCents ?? 0)
             modelContext.insert(item)
         case .edit(let existing):
             item = existing
         }
         await draft.apply(to: item)
         item.brand = selectedBrand
+        item.setCategory(selectedCategory)
+        item.itemType = draft.typeID.flatMap { id in selectedCategory?.types?.first { $0.id == id } }
+        item.enabledCareActions = careActions.filter { draft.careActionIDs.contains($0.id) }
         let tagged = occasions.filter { draft.occasionIDs.contains($0.id) }
         if !tagged.isEmpty { item.occasions = tagged }
         updatePieceLog(of: item)

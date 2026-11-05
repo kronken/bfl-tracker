@@ -7,6 +7,7 @@ struct PickDaySheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @Query private var logs: [DayLog]
+    @Query private var categories: [ClothingCategory]
 
     @State private var month: Date = .now
     @State private var day: Date = .now
@@ -167,12 +168,12 @@ struct PickDaySheet: View {
     /// The day's items, head to toe like Today's sections, then by name.
     private var wornItems: [Item] {
         var seen = Set<UUID>()
-        let order = Dictionary(uniqueKeysWithValues: OutfitGroup.allCases.enumerated().map { ($1, $0) })
+        let order = Dictionary(uniqueKeysWithValues: ClothingCategory.sorted(categories).enumerated().map { ($1.id, $0) })
         return dayLogs.flatMap { $0.items ?? [] }
             .filter { seen.insert($0.id).inserted }
             .sorted {
-                let a = order[OutfitGroup(item: $0)] ?? 0
-                let b = order[OutfitGroup(item: $1)] ?? 0
+                let a = $0.category.flatMap { order[$0.id] } ?? .max
+                let b = $1.category.flatMap { order[$0.id] } ?? .max
                 return a != b ? a < b : $0.name.localizedStandardCompare($1.name) == .orderedAscending
             }
     }

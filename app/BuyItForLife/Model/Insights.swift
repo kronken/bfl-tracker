@@ -7,7 +7,8 @@ import Foundation
 // MARK: - Categories
 
 nonisolated enum InsightCategory: String, CaseIterable, Codable, Sendable {
-    case value, habits, weather, brands, care, buyLess
+    // `care` keeps its stored value; it's now titled for repairs, second-hand and gifts.
+    case value, habits, weather, brands, care, types, careLog, buyLess
 
     var title: String {
         switch self {
@@ -15,7 +16,9 @@ nonisolated enum InsightCategory: String, CaseIterable, Codable, Sendable {
         case .habits: "Habits"
         case .weather: "Weather"
         case .brands: "Brands & origin"
-        case .care: "Care, second-hand & gifts"
+        case .care: "Repairs, second-hand & gifts"
+        case .types: "Kinds of items"
+        case .careLog: "Care"
         case .buyLess: "Buy less"
         }
     }
@@ -28,13 +31,15 @@ nonisolated enum InsightCategory: String, CaseIterable, Codable, Sendable {
         case .weather: "What you wear when it’s cold, wet or warm"
         case .brands: "Brands, brand countries, where things are made"
         case .care: "Repairs, pre-owned pieces, gifts"
+        case .types: "How many of one kind, and which gets worn"
+        case .careLog: "Washing, waxing, oiling and how often"
         case .buyLess: "Days without buying, budgets"
         }
     }
 
     /// Categories with their own switch in Settings. Buy less follows the
     /// buy-less goals instead.
-    static let switchable: [InsightCategory] = [.value, .habits, .weather, .brands, .care]
+    static let switchable: [InsightCategory] = [.value, .habits, .weather, .brands, .care, .types, .careLog]
 }
 
 // MARK: - Context
@@ -47,10 +52,21 @@ nonisolated struct InsightItem: Sendable {
         var cents: Int
     }
 
+    struct CareEntry: Sendable {
+        var actionID: UUID
+        var actionName: String
+        var isWashing: Bool
+        var date: Date
+    }
+
     var id: UUID
     /// The list name (without a leading brand).
     var name: String
-    var category: ItemCategory
+    var categoryID: UUID?
+    var categoryName = ""
+    var typeID: UUID?
+    /// Plural, as typed: "Denim jackets".
+    var typeName: String?
     var isFavorite = false
     var isDailyDriver = false
     var isGift = false
@@ -66,6 +82,7 @@ nonisolated struct InsightItem: Sendable {
     var maxTempC = 35
     var conditions: WeatherConditions = .all
     var repairs: [Repair] = []
+    var careLog: [CareEntry] = []
 
     var purchaseDate: Date { stats.purchaseDate }
 }
@@ -103,6 +120,8 @@ nonisolated struct InsightContext: Sendable {
     var currentTempC: Double?
     var tomorrow: InsightForecast?
     var paidOffTargetCents: Int = 100
+    /// Items unworn this long are under To sell.
+    var sellSuggestionMonths: Int = 12
     /// nil when buy-less goals are off.
     var buyLess: InsightBuyLess?
 
@@ -117,6 +136,9 @@ nonisolated enum DataRequirement: Sendable {
     case daysLogged(Int)
     case itemsWithBrand(Int)
     case buyLessGoals
+    /// At least five owned items have a type. Per-type and per-action
+    /// minimums are checked by the rules themselves.
+    case typesInUse
 
     func isMet(by context: InsightContext) -> Bool {
         switch self {
@@ -124,6 +146,7 @@ nonisolated enum DataRequirement: Sendable {
         case .daysLogged(let count): context.days.count >= count
         case .itemsWithBrand(let count): context.owned.count { $0.brand != nil } >= count
         case .buyLessGoals: context.buyLess != nil
+        case .typesInUse: context.owned.count { $0.typeID != nil } >= 5
         }
     }
 }

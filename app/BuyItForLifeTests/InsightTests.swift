@@ -14,7 +14,7 @@ private struct Fixture {
     func item(_ name: String = "Tee", price: Int = 2_000, prior: Int = 0, wornDaysAgo: [Int] = [],
               bought: Date? = nil, configure: (inout InsightItem) -> Void = { _ in }) -> InsightItem {
         var item = InsightItem(
-            id: UUID(), name: name, category: .tops, createdAt: date(daysAgo: 400),
+            id: UUID(), name: name, createdAt: date(daysAgo: 400),
             stats: ItemStats(purchaseDate: bought ?? date(daysAgo: 400), purchasePriceCents: price, priorWearCount: prior,
                              loggedDayKeys: Set(wornDaysAgo.map { key(daysAgo: $0) }), soldDate: nil, soldPriceCents: nil))
         configure(&item)

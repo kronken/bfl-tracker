@@ -107,7 +107,7 @@ struct ItemDraftTests {
         draft.name = "  Red Wing Iron Ranger  "
         draft.priceText = "349"
         #expect(!draft.isValid)
-        draft.category = .footwear
+        draft.categoryID = UUID()
         #expect(draft.isValid)
         #expect(draft.trimmedName == "Red Wing Iron Ranger")
         draft.isSold = true

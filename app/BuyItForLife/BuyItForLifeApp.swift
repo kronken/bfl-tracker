@@ -1,6 +1,14 @@
 import SwiftData
 import SwiftUI
 
+/// Every SwiftData model, for the app, demo data and tests.
+enum AppSchema {
+    static let models: [any PersistentModel.Type] = [
+        Item.self, DayLog.self, Repair.self, PieceEvent.self, Occasion.self, Brand.self,
+        ClothingCategory.self, ItemType.self, CareAction.self, CareLogEntry.self,
+    ]
+}
+
 @main
 struct BuyItForLifeApp: App {
     @UIApplicationDelegateAdaptor private var appDelegate: AppDelegate
@@ -25,7 +33,7 @@ struct BuyItForLifeApp: App {
         #if DEBUG
         if DemoData.isEnabled { return DemoData.makeContainer() }
         #endif
-        let schema = Schema([Item.self, DayLog.self, Repair.self, PieceEvent.self, Occasion.self, Brand.self])
+        let schema = Schema(AppSchema.models)
         let configuration = ModelConfiguration(
             schema: schema,
             cloudKitDatabase: .private("iCloud.com.joakimkronqvist.bifl")

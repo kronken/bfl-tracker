@@ -8,12 +8,17 @@ struct SettingsView: View {
     @Query private var items: [Item]
     @Query private var occasions: [Occasion]
     @Query private var brands: [Brand]
+    @Query private var categories: [ClothingCategory]
+    @Query private var itemTypes: [ItemType]
+    @Query private var careActions: [CareAction]
 
     @State private var reminderProblem: String?
     @State private var versionTaps: [Date] = []
     @State private var showDebug = false
     @State private var showOccasions = false
     @State private var showBrands = false
+    @State private var showCategories = false
+    @State private var showCareActions = false
 
     @State private var cityListOpen = false
     @State private var isLocating = false
@@ -29,7 +34,9 @@ struct SettingsView: View {
             ScreenHeader(title: "Settings")
             VStack(alignment: .leading, spacing: 24) {
                 occasionsSection
+                categoriesSection
                 brandsSection
+                careSection
                 weatherSection
                 reminderSection
                 paidOffSection
@@ -50,12 +57,16 @@ struct SettingsView: View {
         .sheet(isPresented: $showDebug) { DebugView() }
         .navigationDestination(isPresented: $showOccasions) { OccasionsView() }
         .navigationDestination(isPresented: $showBrands) { BrandsView() }
+        .navigationDestination(isPresented: $showCategories) { CategoriesView() }
+        .navigationDestination(isPresented: $showCareActions) { CareActionsView() }
         #if DEBUG
         // `-openDebugScreen YES` / `-replayOnboarding YES` on launch, for screenshots.
         .onAppear {
             if UserDefaults.standard.bool(forKey: "openDebugScreen") { showDebug = true }
             if UserDefaults.standard.string(forKey: "openOccasions") != nil { showOccasions = true }
             if UserDefaults.standard.string(forKey: "openBrands") != nil { showBrands = true }
+            if UserDefaults.standard.bool(forKey: "openCategories") { showCategories = true }
+            if UserDefaults.standard.bool(forKey: "openCareActions") { showCareActions = true }
             if UserDefaults.standard.bool(forKey: "replayOnboarding") { AppRouter.shared.replayOnboarding = true }
         }
         #endif
@@ -90,6 +101,59 @@ struct SettingsView: View {
             .buttonStyle(.plain)
             .card(padding: nil)
         }
+    }
+
+    // MARK: Categories and care
+
+    private var categoriesSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel("Categories")
+            navigationRow(icon: "square.stack", title: "Categories and types",
+                          value: "\(categories.count) · \(itemTypes.count == 1 ? "1 type" : "\(itemTypes.count) types")") {
+                showCategories = true
+            }
+        }
+    }
+
+    private var careSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel("Care actions")
+            navigationRow(icon: "drop", title: "Care actions",
+                          value: CareAction.sorted(careActions).map(\.name).joined(separator: ", ")) {
+                showCareActions = true
+            }
+            Text("Turn them on per item to start logging.")
+                .font(.footnote)
+                .foregroundStyle(.textSecondary)
+                .padding(.horizontal, 4)
+        }
+    }
+
+    /// Icon, title, trailing value, chevron: opens another screen.
+    private func navigationRow(icon: String, title: String, value: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                iconTile(icon)
+                Text(title)
+                    .font(.body)
+                    .foregroundStyle(.textPrimary)
+                    .layoutPriority(1)
+                Spacer(minLength: 8)
+                Text(value)
+                    .font(.body)
+                    .foregroundStyle(.textSecondary)
+                    .lineLimit(1)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.textTertiary)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .frame(minHeight: 56)
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .card(padding: nil)
     }
 
     // MARK: Brands

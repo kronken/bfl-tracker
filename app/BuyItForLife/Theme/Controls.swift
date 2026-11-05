@@ -357,3 +357,46 @@ struct EditSheet<Content: View>: View {
         .presentationBackground(.appBackground)
     }
 }
+
+// MARK: - Add chip
+
+/// Dashed blue "+ New …" capsule at the end of a chip row.
+struct DashedAddChip: View {
+    var title: String
+    var height: CGFloat = 40
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: "plus")
+                .font(.rowDetail.weight(.medium))
+                .foregroundStyle(.dataBlue)
+                .padding(.horizontal, 14)
+                .frame(minHeight: height)
+                .overlay { Capsule().strokeBorder(.stroke, style: StrokeStyle(lineWidth: 1, dash: [4, 3])) }
+                .contentShape(.capsule)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// Full-width dashed "+ New …" button under a list.
+struct DashedAddButton: View {
+    var title: String
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: "plus")
+                .font(.rowTitle)
+                .foregroundStyle(.dataBlue)
+                .frame(maxWidth: .infinity, minHeight: 52)
+                .overlay {
+                    RoundedRectangle(cornerRadius: Radius.card)
+                        .strokeBorder(.stroke, style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
+                }
+                .contentShape(.rect(cornerRadius: Radius.card))
+        }
+        .buttonStyle(.plain)
+    }
+}
