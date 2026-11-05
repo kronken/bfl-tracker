@@ -11,6 +11,11 @@ final class Item {
     var categoryRaw: String = ItemCategory.other.rawValue
     var notes: String = ""
     var createdAt: Date = Date.now
+    var brand: Brand?
+    /// Where it was made, ISO 3166-1 alpha-2 (e.g. "PT"). nil = not set.
+    var madeInCountryCode: String?
+    /// Free text: "M", "48", "W32 L34". nil when empty.
+    var size: String?
 
     // Purchase
     var purchaseDate: Date = Date.now

@@ -15,16 +15,20 @@ struct ItemFormView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query private var occasions: [Occasion]
+    @Query private var brands: [Brand]
+    @Query private var allItems: [Item]
 
     @State private var draft: ItemDraft
     @State private var isProcessingPhoto = false
     @State private var isSaving = false
     @State private var showNewOccasion = false
+    @State private var showBrandPicker = false
+    @State private var showMadeIn = false
     /// Bumped when the last occasion is tapped: it shakes instead.
     @State private var occasionRefusals = 0
     @FocusState private var focusedField: Field?
 
-    private enum Field { case name, price, wears, notes, soldPrice }
+    private enum Field { case name, size, price, wears, notes, soldPrice }
 
     @State private var initialDraft: ItemDraft
 
@@ -87,11 +91,44 @@ struct ItemFormView: View {
         .presentationBackground(.appBackground)
         .interactiveDismissDisabled(draft != initialDraft)
         .onAppear(perform: fillInOccasions)
+        .sheet(isPresented: $showBrandPicker) {
+            BrandPicker(selectedID: draft.brandID, item: draftImageContent) { draft.brandID = $0?.id }
+        }
+        .sheet(isPresented: $showMadeIn) {
+            CountryPicker(title: "Made in", selection: draft.madeInCountryCode,
+                          suggested: Countries.suggestions(used: allItems.map(\.madeInCountryCode)
+                                                               + brands.map(\.countryCode))) {
+                draft.madeInCountryCode = $0
+            }
+        }
         .sheet(isPresented: $showNewOccasion) {
             OccasionSheet(mode: .new(item: draftImageContent)) { created in
                 draft.occasionIDs.insert(created.id)
             }
         }
+    }
+
+    // MARK: Brand and origin
+
+    private var selectedBrand: Brand? {
+        draft.brandID.flatMap { id in brands.first { $0.id == id } }
+    }
+
+    /// A form row that opens a picker: label, value, chevron.
+    private func pickerRow<Value: View>(_ label: String, action: @escaping () -> Void,
+                                        @ViewBuilder value: () -> Value) -> some View {
+        Button(action: action) {
+            FormRow(label: label) {
+                HStack(spacing: 8) {
+                    value()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.textTertiary)
+                }
+            }
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: Occasions
@@ -178,6 +215,34 @@ struct ItemFormView: View {
                         .multilineTextAlignment(.trailing)
                         .textInputAutocapitalization(.words)
                         .focused($focusedField, equals: .name)
+                }
+                RowDivider()
+                pickerRow("Brand", action: { showBrandPicker = true }) {
+                    if let brand = selectedBrand {
+                        HStack(spacing: 0) {
+                            Text(brand.name).foregroundStyle(.textPrimary)
+                            if let code = brand.countryCode {
+                                Text(" · \(Countries.name(for: code))").foregroundStyle(.textSecondary)
+                            }
+                        }
+                        .lineLimit(1)
+                    } else {
+                        Text("Optional").foregroundStyle(.textTertiary)
+                    }
+                }
+                RowDivider()
+                pickerRow("Made in", action: { showMadeIn = true }) {
+                    Text(draft.madeInCountryCode.map { Countries.name(for: $0) } ?? "Optional")
+                        .foregroundStyle(draft.madeInCountryCode == nil ? .textTertiary : .textPrimary)
+                        .lineLimit(1)
+                }
+                RowDivider()
+                FormRow(label: "Size") {
+                    TextField("Size", text: $draft.sizeText, prompt: Text("M, 48, W32 L34").foregroundStyle(.textTertiary))
+                        .multilineTextAlignment(.trailing)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.characters)
+                        .focused($focusedField, equals: .size)
                 }
                 if draft.hasPieceLog {
                     RowDivider()
@@ -288,7 +353,7 @@ struct ItemFormView: View {
     private var notesSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionLabel("Notes")
-            TextField("Notes", text: $draft.notes, prompt: Text("Size, fit, care, repairs").foregroundStyle(.textTertiary),
+            TextField("Notes", text: $draft.notes, prompt: Text("Fit, care, anything else").foregroundStyle(.textTertiary),
                       axis: .vertical)
                 .lineLimit(3...10)
                 .focused($focusedField, equals: .notes)
@@ -404,6 +469,7 @@ struct ItemFormView: View {
             item = existing
         }
         await draft.apply(to: item)
+        item.brand = selectedBrand
         let tagged = occasions.filter { draft.occasionIDs.contains($0.id) }
         if !tagged.isEmpty { item.occasions = tagged }
         updatePieceLog(of: item)

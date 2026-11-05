@@ -47,6 +47,9 @@ struct DraftPhoto: Equatable {
 /// `Item` until the user taps Add or Save.
 struct ItemDraft: Equatable {
     var name = ""
+    var brandID: UUID?
+    var madeInCountryCode: String?
+    var sizeText = ""
     var priceText = ""
     var purchaseDate = Date.now
     var priorWearCount = 0
@@ -84,6 +87,9 @@ struct ItemDraft: Equatable {
 
     init(item: Item) {
         name = item.name
+        brandID = item.brand?.id
+        madeInCountryCode = item.madeInCountryCode
+        sizeText = item.size ?? ""
         priceText = Money.inputText(cents: item.purchasePriceCents)
         purchaseDate = item.purchaseDate
         priorWearCount = item.priorWearCount
@@ -137,6 +143,8 @@ struct ItemDraft: Equatable {
     /// and cutout on an existing photo may need a new thumbnail.
     func apply(to item: Item) async {
         item.name = trimmedName
+        item.madeInCountryCode = madeInCountryCode
+        item.size = BrandRules.cleaned(sizeText)
         item.purchasePriceCents = priceCents ?? 0
         item.purchaseDate = purchaseDate
         item.priorWearCount = max(0, priorWearCount)

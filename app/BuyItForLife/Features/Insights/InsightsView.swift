@@ -31,6 +31,10 @@ struct InsightsView: View {
                     let wardrobe = WardrobeStats(items: items.map(\.stats))
                     CostPerDayCard(wardrobe: wardrobe, hidesTotals: settings.hidesTotals)
                     totals(wardrobe)
+                    let owned = items.filter { !$0.isSold }
+                    if owned.contains(where: { $0.brand != nil }) {
+                        OriginCard(entries: owned.map(\.originEntry), hidesTotals: settings.hidesTotals)
+                    }
                     // Feel-good mode leaves the spending chart out entirely.
                     if !settings.hidesTotals {
                         SpendPerYearCard(points: wardrobe.spendPerYear(), months: wardrobe.spendPerMonth(), mode: $spendMode)

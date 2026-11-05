@@ -41,12 +41,48 @@ struct ItemDetailView: View {
         }
     }
 
+    // MARK: Details
+
+    private var hasDetails: Bool { item.brand != nil || item.madeInCountryCode != nil || item.size != nil }
+
+    /// Brand, Made in and Size; only the ones that are set.
+    private var detailsCard: some View {
+        let rows: [(label: String, value: Text)] = [
+            item.brand.map { brand in
+                let country = Text(brand.countryCode.map { " · \(Countries.name(for: $0))" } ?? "")
+                    .foregroundStyle(.textSecondary)
+                return ("Brand", Text("\(Text(brand.name).foregroundStyle(.textPrimary))\(country)"))
+            },
+            item.madeInCountryCode.map { ("Made in", Text(Countries.name(for: $0)).foregroundStyle(.textPrimary)) },
+            item.size.map { ("Size", Text($0).foregroundStyle(.textPrimary)) },
+        ].compactMap { $0 }
+        return VStack(spacing: 0) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                if index > 0 { RowDivider() }
+                HStack(spacing: 12) {
+                    Text(row.label)
+                        .foregroundStyle(.textSecondary)
+                    Spacer(minLength: 8)
+                    row.value
+                        .multilineTextAlignment(.trailing)
+                        .lineLimit(2)
+                }
+                .font(.rowDetail)
+                .padding(.horizontal, 16)
+                .frame(minHeight: 44)
+                .accessibilityElement(children: .combine)
+            }
+        }
+        .card(padding: nil)
+    }
+
     var body: some View {
         let stats = item.stats
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 hero
                 titleBlock
+                if hasDetails { detailsCard }
                 costCard(stats)
                 statTiles(stats)
                 priceCard(stats)

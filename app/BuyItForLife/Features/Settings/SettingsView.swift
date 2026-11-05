@@ -7,11 +7,13 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var items: [Item]
     @Query private var occasions: [Occasion]
+    @Query private var brands: [Brand]
 
     @State private var reminderProblem: String?
     @State private var versionTaps: [Date] = []
     @State private var showDebug = false
     @State private var showOccasions = false
+    @State private var showBrands = false
 
     @State private var cityListOpen = false
     @State private var isLocating = false
@@ -27,6 +29,7 @@ struct SettingsView: View {
             ScreenHeader(title: "Settings")
             VStack(alignment: .leading, spacing: 24) {
                 occasionsSection
+                brandsSection
                 weatherSection
                 reminderSection
                 paidOffSection
@@ -45,11 +48,13 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $showDebug) { DebugView() }
         .navigationDestination(isPresented: $showOccasions) { OccasionsView() }
+        .navigationDestination(isPresented: $showBrands) { BrandsView() }
         #if DEBUG
         // `-openDebugScreen YES` / `-replayOnboarding YES` on launch, for screenshots.
         .onAppear {
             if UserDefaults.standard.bool(forKey: "openDebugScreen") { showDebug = true }
             if UserDefaults.standard.string(forKey: "openOccasions") != nil { showOccasions = true }
+            if UserDefaults.standard.string(forKey: "openBrands") != nil { showBrands = true }
             if UserDefaults.standard.bool(forKey: "replayOnboarding") { AppRouter.shared.replayOnboarding = true }
         }
         #endif
@@ -72,6 +77,35 @@ struct SettingsView: View {
                         .foregroundStyle(.textSecondary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.textTertiary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .frame(minHeight: 56)
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .card(padding: nil)
+        }
+    }
+
+    // MARK: Brands
+
+    private var brandsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel("Brands")
+            Button { showBrands = true } label: {
+                HStack(spacing: 12) {
+                    iconTile("tag")
+                    Text("Brands")
+                        .font(.body)
+                        .foregroundStyle(.textPrimary)
+                    Spacer(minLength: 8)
+                    Text(brands.count.formatted())
+                        .font(.body)
+                        .foregroundStyle(.textSecondary)
                     Image(systemName: "chevron.right")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.textTertiary)

@@ -15,7 +15,7 @@ enum DemoData {
     static var isLarge: Bool { UserDefaults.standard.bool(forKey: "demoLarge") }
 
     static func makeContainer() -> ModelContainer {
-        let schema = Schema([Item.self, DayLog.self, Repair.self, PieceEvent.self, Occasion.self])
+        let schema = Schema([Item.self, DayLog.self, Repair.self, PieceEvent.self, Occasion.self, Brand.self])
         let configuration: ModelConfiguration
         if isLarge {
             let url = URL.temporaryDirectory.appending(path: "demo-\(UUID().uuidString).store")
@@ -26,6 +26,7 @@ enum DemoData {
         let container = try! ModelContainer(for: schema, configurations: [configuration])
         insertSamples(into: container.mainContext)
         if UserDefaults.standard.bool(forKey: "demoOccasions") { insertOccasions(into: container.mainContext) }
+        if UserDefaults.standard.bool(forKey: "demoBrands") { insertBrands(into: container.mainContext) }
         if isLarge { insertLargeWardrobe(into: container.mainContext) }
         try? container.mainContext.save()
         return container
@@ -197,6 +198,42 @@ enum DemoData {
                                 "Rain shell", "Field watch", "Leather belt", "Linen shirt", "Cotton boxers"]
         for item in items where officeNames.contains(item.name) {
             item.occasions = item.name == "Selvedge jeans" ? [office] : [everyday, office]
+        }
+    }
+
+    /// `-demoBrands YES`: made-up brands with home countries, plus where
+    /// items were made and their sizes.
+    private static func insertBrands(into context: ModelContext) {
+        let brands: [String: Brand] = [
+            "Northfield": Brand(name: "Northfield", countryCode: "US"),
+            "Harlow & Sons": Brand(name: "Harlow & Sons", countryCode: "GB"),
+            "Fjell": Brand(name: "Fjell", countryCode: "NO"),
+            "Atelier Brun": Brand(name: "Atelier Brun", countryCode: "FR"),
+            "Kettle Island": Brand(name: "Kettle Island", countryCode: "IE"),
+            "Uhrwerk": Brand(name: "Uhrwerk", countryCode: "CH"),
+            "Selva": Brand(name: "Selva", countryCode: "IT"),
+            "Polar Mill": Brand(name: "Polar Mill", countryCode: nil),
+        ]
+        brands.values.forEach(context.insert)
+        let assignments: [String: (brand: String, madeIn: String?, size: String?)] = [
+            "Leather work boots": ("Northfield", "US", "9.5 D"),
+            "Raw denim jeans": ("Northfield", "JP", "W32 L34"),
+            "Selvedge jeans": ("Atelier Brun", "JP", "W32 L32"),
+            "Wool mackinaw jacket": ("Northfield", "US", "M"),
+            "Waxed cotton jacket": ("Harlow & Sons", "GB", "40"),
+            "Rain shell": ("Fjell", "VN", "M"),
+            "Aran wool sweater": ("Kettle Island", "IE", "M"),
+            "Leather sandals": ("Selva", "IT", "43"),
+            "Linen shirt": ("Atelier Brun", "PT", "M"),
+            "Field watch": ("Uhrwerk", "CH", nil),
+            "Leather belt": ("Harlow & Sons", "GB", "85"),
+            "Cotton boxers": ("Polar Mill", "PT", "M"),
+        ]
+        for item in (try? context.fetch(FetchDescriptor<Item>())) ?? [] {
+            guard let assignment = assignments[item.name] else { continue }
+            item.brand = brands[assignment.brand]
+            item.madeInCountryCode = assignment.madeIn
+            item.size = assignment.size
         }
     }
 
