@@ -12,9 +12,13 @@ struct WardrobeView: View {
 
     @Environment(AppSettings.self) private var settings
     @Query(sort: \Item.purchaseDate, order: .reverse) private var items: [Item]
+    @Query private var brands: [Brand]
 
     @State private var shelf: Shelf = .owned
     @State private var filter: Filter = .all
+    /// Brand filter for this session only; combines with `filter`.
+    @State private var brandID: UUID?
+    @State private var showBrandFilter = false
     @State private var search = ""
     @State private var showNewItem = false
     @State private var editing: Item?
@@ -54,7 +58,22 @@ struct WardrobeView: View {
                 ItemDetailView(item: item)
             }
         }
-        .onChange(of: shelf) { filter = .all }
+        .onChange(of: shelf) {
+            filter = .all
+            // Keep the brand only if it has items in the new tab.
+            if let brandID, shelf != .toSell, !onShelf.contains(where: { $0.brand?.id == brandID }) {
+                self.brandID = nil
+            }
+        }
+        .onChange(of: brands.map(\.id)) {
+            // The brand was deleted.
+            if let brandID, !brands.contains(where: { $0.id == brandID }) { self.brandID = nil }
+        }
+        .sheet(isPresented: $showBrandFilter) {
+            BrandFilterSheet(items: onShelf, brands: brands, selectedID: brandID) { id in
+                withAnimation(.snappy(duration: 0.2)) { brandID = id }
+            }
+        }
         #if DEBUG
         // `-openItemForm new|edit|<name prefix>` or `-openItemDetail` on launch, for screenshots.
         .onAppear {
@@ -70,6 +89,11 @@ struct WardrobeView: View {
             case "sold": shelf = .sold
             default: break
             }
+            // `-wardrobeBrand <name>` filters by that brand; `-openBrandFilter YES` opens the sheet.
+            if let name = UserDefaults.standard.string(forKey: "wardrobeBrand") {
+                brandID = brands.first { $0.name == name }?.id
+            }
+            if UserDefaults.standard.bool(forKey: "openBrandFilter") { showBrandFilter = true }
             // `-openItemDetail YES` opens the most worn item; any other value
             // opens the first item whose name starts with it.
             if let wanted = UserDefaults.standard.string(forKey: "openItemDetail") {
@@ -102,8 +126,18 @@ struct WardrobeView: View {
             .map(\.0)
     }
 
+    /// The selected brand; a renamed brand shows its new name.
+    private var selectedBrand: Brand? { brandID.flatMap { id in brands.first { $0.id == id } } }
+
+    /// This tab's items of the selected brand. To sell has no filter row, so
+    /// the brand filter doesn't apply there.
+    private var inBrand: [Item] {
+        guard let brandID, shelf != .toSell else { return onShelf }
+        return onShelf.filter { $0.brand?.id == brandID }
+    }
+
     private var visible: [Item] {
-        onShelf.filter { matches($0, filter) && matchesSearch($0) }
+        inBrand.filter { matches($0, filter) && matchesSearch($0) }
     }
 
     private func matches(_ item: Item, _ filter: Filter) -> Bool {
@@ -120,6 +154,7 @@ struct WardrobeView: View {
         let options: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive]
         return item.name.range(of: query, options: options) != nil
             || item.category.title.range(of: query, options: options) != nil
+            || item.brand?.name.range(of: query, options: options) != nil
     }
 
     private var summary: String {
@@ -144,15 +179,24 @@ struct WardrobeView: View {
     /// "All", "Favorites" (owned only), then the categories that have items on
     /// this shelf.
     private var categoryChips: some View {
+        let shown = inBrand
         let present = ItemCategory.allCases.compactMap { category -> (ItemCategory, Int)? in
-            let count = onShelf.count { $0.category == category }
-            return count > 0 ? (category, count) : nil
+            let count = shown.count { $0.category == category }
+            // The picked category stays, even at 0, so it can be seen and changed.
+            return count > 0 || filter == .category(category) ? (category, count) : nil
         }
         return ScrollView(.horizontal) {
             HStack(spacing: 8) {
-                Chip(title: "All \(onShelf.count)", isOn: filter == .all, height: 36) { filter = .all }
+                if !brands.isEmpty {
+                    BrandFilterControl(brandName: selectedBrand?.name, onOpen: { showBrandFilter = true },
+                                       onClear: { withAnimation(.snappy(duration: 0.2)) { brandID = nil } })
+                    Rectangle()
+                        .fill(.stroke)
+                        .frame(width: 1, height: 24)
+                }
+                Chip(title: "All \(shown.count)", isOn: filter == .all, height: 36) { filter = .all }
                 if shelf == .owned {
-                    Chip(title: "Favorites \(owned.count(where: \.isFavorite))", isOn: filter == .favorites,
+                    Chip(title: "Favorites \(shown.count(where: \.isFavorite))", isOn: filter == .favorites,
                          height: 36) { filter = .favorites }
                 }
                 ForEach(present, id: \.0) { category, count in
@@ -169,7 +213,25 @@ struct WardrobeView: View {
 
     @ViewBuilder
     private var grid: some View {
-        if visible.isEmpty {
+        if visible.isEmpty, let brand = selectedBrand, search.trimmingCharacters(in: .whitespaces).isEmpty {
+            VStack(spacing: 12) {
+                Text("No \(brand.name) items in \(filterTitle).")
+                    .font(.rowDetail)
+                    .foregroundStyle(.textSecondary)
+                    .multilineTextAlignment(.center)
+                Button("Clear filters") {
+                    withAnimation(.snappy(duration: 0.2)) {
+                        brandID = nil
+                        filter = .all
+                    }
+                }
+                .font(.rowDetail.weight(.semibold))
+                .foregroundStyle(.dataBlue)
+                .frame(minHeight: 44)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 24)
+        } else if visible.isEmpty {
             Text(emptyMessage)
                 .font(.rowDetail)
                 .foregroundStyle(.textSecondary)
@@ -187,6 +249,15 @@ struct WardrobeView: View {
                 }
             }
             .padding(.top, 4)
+        }
+    }
+
+    /// "Tops", "Favorites", or the tab's name for All.
+    private var filterTitle: String {
+        switch filter {
+        case .all: shelf == .sold ? "Sold" : "Owned"
+        case .favorites: "Favorites"
+        case .category(let category): category.title
         }
     }
 
