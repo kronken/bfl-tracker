@@ -20,6 +20,9 @@ final class AppSettings {
         static let noBuyGoalDays = "noBuyGoalDays"
         static let monthlyLimitCents = "monthlyLimitCents"
         static let yearlyBudgetCents = "yearlyBudgetCents"
+        static let insightsEnabled = "insightsEnabled"
+        static let insightsOnToday = "insightsOnToday"
+        static let disabledInsightCategories = "disabledInsightCategories"
         // Kept on this device only: notifications and their permission are per device.
         static let reminderEnabled = "reminderEnabled"
         static let reminderMinutes = "reminderMinutes"
@@ -89,6 +92,25 @@ final class AppSettings {
     static let defaultMonthlyLimitCents = 5_000
     static let defaultYearlyBudgetCents = 30_000
 
+    // Daily insights. Both switches default to on.
+    var insightsEnabled: Bool {
+        didSet { store.set(insightsEnabled, forKey: Key.insightsEnabled) }
+    }
+
+    /// Also show the day's insight on Today, when it's about the day.
+    var insightsOnToday: Bool {
+        didSet { store.set(insightsOnToday, forKey: Key.insightsOnToday) }
+    }
+
+    var disabledInsightCategories: Set<InsightCategory> {
+        didSet { store.set(disabledInsightCategories.map(\.rawValue).sorted(), forKey: Key.disabledInsightCategories) }
+    }
+
+    /// What daily insights may show, from these settings.
+    var insightFilter: InsightFilter {
+        InsightFilter(disabledCategories: disabledInsightCategories, feelGood: feelGoodMode, buyLessEnabled: buyLessEnabled)
+    }
+
     /// The one place screens ask whether to hide money totals.
     var hidesTotals: Bool { feelGoodMode }
 
@@ -125,6 +147,10 @@ final class AppSettings {
             ? Self.defaultMonthlyLimitCents : Int(store.longLong(forKey: Key.monthlyLimitCents))
         yearlyBudgetCents = store.object(forKey: Key.yearlyBudgetCents) == nil
             ? Self.defaultYearlyBudgetCents : Int(store.longLong(forKey: Key.yearlyBudgetCents))
+        insightsEnabled = store.object(forKey: Key.insightsEnabled) as? Bool ?? true
+        insightsOnToday = store.object(forKey: Key.insightsOnToday) as? Bool ?? true
+        disabledInsightCategories = Set((store.array(forKey: Key.disabledInsightCategories) as? [String] ?? [])
+            .compactMap(InsightCategory.init(rawValue:)))
         reminderEnabled = local.bool(forKey: Key.reminderEnabled)
         reminderMinutes = local.object(forKey: Key.reminderMinutes) as? Int ?? Self.defaultReminderMinutes
         #if DEBUG
@@ -172,5 +198,9 @@ final class AppSettings {
             ? Self.defaultMonthlyLimitCents : Int(store.longLong(forKey: Key.monthlyLimitCents))
         yearlyBudgetCents = store.object(forKey: Key.yearlyBudgetCents) == nil
             ? Self.defaultYearlyBudgetCents : Int(store.longLong(forKey: Key.yearlyBudgetCents))
+        insightsEnabled = store.object(forKey: Key.insightsEnabled) as? Bool ?? true
+        insightsOnToday = store.object(forKey: Key.insightsOnToday) as? Bool ?? true
+        disabledInsightCategories = Set((store.array(forKey: Key.disabledInsightCategories) as? [String] ?? [])
+            .compactMap(InsightCategory.init(rawValue:)))
     }
 }

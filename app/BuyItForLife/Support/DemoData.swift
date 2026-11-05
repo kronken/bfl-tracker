@@ -252,6 +252,12 @@ enum DemoData {
                 let log = DayLog(dayKey: DayKey.make(for: date))
                 context.insert(log)
                 log.items = [boots, jeans]
+                // Helsinki-like noon temperatures, so weather insights have history.
+                let monthTemps = [-5.0, -6, -2, 4, 11, 16, 19, 17, 12, 6, 1, -3]
+                let temperature = monthTemps[calendar.component(.month, from: date) - 1] + Double(day % 5 - 2)
+                log.store(WeatherSnapshot(temperatureC: temperature, feelsLikeC: temperature - 3,
+                                          conditionRaw: day % 4 == 0 ? "rain" : "cloudy", symbolName: "cloud",
+                                          placeName: "Helsinki"))
             }
         }
     }

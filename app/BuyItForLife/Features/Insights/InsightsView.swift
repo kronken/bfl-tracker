@@ -3,6 +3,7 @@ import SwiftUI
 
 struct InsightsView: View {
     @Environment(AppSettings.self) private var settings
+    @Environment(DailyInsightStore.self) private var insights
     @Query(sort: \Item.purchaseDate) private var items: [Item]
 
     @State private var spendMode: SpendPerYearCard.Mode = .yearly
@@ -15,6 +16,7 @@ struct InsightsView: View {
         NavigationStack {
             TabScreen {
                 ScreenHeader(subtitle: items.isEmpty ? nil : subtitle, title: "Insights")
+                dailyInsight
                 if settings.buyLessEnabled {
                     BuyLessCard(
                         stats: BuyLessStats(purchases: items.flatMap(\.purchases),
@@ -49,6 +51,23 @@ struct InsightsView: View {
             #endif
             .navigationDestination(for: Item.self) { item in
                 ItemDetailView(item: item)
+            }
+        }
+    }
+
+    // MARK: Daily insight
+
+    /// The day's insight; opens its item when it's about one.
+    @ViewBuilder
+    private var dailyInsight: some View {
+        if settings.insightsEnabled, let insight = insights.today, !insight.isEmpty {
+            if let id = insight.relatedItemId, let item = items.first(where: { $0.id == id }) {
+                NavigationLink(value: item) { InsightCard(insight: insight) }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityHint("Opens \(item.name)")
+            } else {
+                InsightCard(insight: insight)
             }
         }
     }
@@ -492,6 +511,7 @@ private struct RankingRow: View {
 #Preview {
     InsightsView()
         .environment(AppSettings())
+        .environment(DailyInsightStore())
         .modelContainer(for: [Item.self, DayLog.self], inMemory: true)
         .preferredColorScheme(.dark)
 }

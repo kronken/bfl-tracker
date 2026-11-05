@@ -6,6 +6,7 @@ struct BuyItForLifeApp: App {
     @UIApplicationDelegateAdaptor private var appDelegate: AppDelegate
     @State private var settings = AppSettings()
     @State private var weather = WeatherStore()
+    @State private var insights = DailyInsightStore()
     private let container = Self.makeContainer()
 
     var body: some Scene {
@@ -13,6 +14,7 @@ struct BuyItForLifeApp: App {
             RootView()
                 .environment(settings)
                 .environment(weather)
+                .environment(insights)
                 .preferredColorScheme(.dark)
         }
         .modelContainer(container)

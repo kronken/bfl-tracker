@@ -8,6 +8,7 @@ struct TodayView: View {
     @Environment(\.requestReview) private var requestReview
     @Environment(AppSettings.self) private var settings
     @Environment(WeatherStore.self) private var weather
+    @Environment(DailyInsightStore.self) private var insights
 
     @Query(sort: \Item.purchaseDate, order: .reverse) private var items: [Item]
     @Query private var logs: [DayLog]
@@ -33,6 +34,7 @@ struct TodayView: View {
             }
             WeekStrip(selectedDay: $selectedDay, loggedDayKeys: loggedDayKeys)
             weatherSection
+            insightLine
             let outfit = makeOutfit(occasion: dayOccasion)
             if outfit.offered.isEmpty {
                 emptyWardrobe
@@ -170,6 +172,19 @@ struct TodayView: View {
             case .loading, .loaded:
                 WeatherCard.placeholder
             }
+        }
+    }
+
+    /// The day's insight, when it's about today or tomorrow and the user wants
+    /// it here. Always the same pick as on Insights.
+    @ViewBuilder
+    private var insightLine: some View {
+        if isToday, settings.insightsEnabled, settings.insightsOnToday, let insight = insights.today,
+           !insight.isEmpty, insight.isTimely, !insights.isHiddenOnToday() {
+            TodayInsightLine(insight: insight, onOpen: { AppRouter.shared.tab = .insights }) {
+                withAnimation(.snappy) { insights.hideOnToday() }
+            }
+            .transition(.opacity)
         }
     }
 
@@ -462,6 +477,7 @@ struct TodayView: View {
 #Preview {
     NavigationStack { TodayView() }
         .environment(AppSettings())
+        .environment(DailyInsightStore())
         .environment(WeatherStore())
         .modelContainer(for: [Item.self, DayLog.self], inMemory: true)
         .preferredColorScheme(.dark)

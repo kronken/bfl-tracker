@@ -24,6 +24,8 @@ final class WeatherStore {
 
     private(set) var today: TodayState = .needsLocation
     private(set) var attribution: Attribution?
+    /// Tomorrow's low, high and condition, for daily insights. nil until loaded.
+    private(set) var tomorrow: InsightForecast?
 
     let location = LocationProvider()
 
@@ -49,6 +51,13 @@ final class WeatherStore {
             let name = Cities.city(id: locationSetting)?.name
             today = .loaded(WeatherSnapshot(temperatureC: temperature, feelsLikeC: temperature - 4,
                                             conditionRaw: String(fake[1]), symbolName: "cloud.drizzle", placeName: name))
+            // `-debugTomorrow m2,snow` fakes tomorrow's forecast too (m = minus,
+            // as a leading "-" would be read as another argument).
+            if let fake = UserDefaults.standard.string(forKey: "debugTomorrow")?.split(separator: ","), fake.count == 2,
+               let temperature = Double(fake[0].replacingOccurrences(of: "m", with: "-")) {
+                tomorrow = InsightForecast(lowC: temperature - 2, highC: temperature + 2,
+                                           conditions: WeatherBuckets.bucket(forRaw: String(fake[1])))
+            }
             return
         }
         #endif
@@ -56,7 +65,12 @@ final class WeatherStore {
 
         do {
             let (place, name) = try await resolve(locationSetting)
-            let current = try await service.weather(for: place, including: .current)
+            let (current, daily) = try await service.weather(for: place, including: .current, .daily)
+            tomorrow = daily.first { Calendar.current.isDateInTomorrow($0.date) }.map { day in
+                InsightForecast(lowC: day.lowTemperature.converted(to: .celsius).value,
+                                highC: day.highTemperature.converted(to: .celsius).value,
+                                conditions: WeatherBuckets.bucket(forRaw: day.condition.rawValue))
+            }
             today = .loaded(WeatherSnapshot(
                 temperatureC: current.temperature.converted(to: .celsius).value,
                 feelsLikeC: current.apparentTemperature.converted(to: .celsius).value,

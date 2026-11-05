@@ -35,6 +35,7 @@ struct SettingsView: View {
                 paidOffSection
                 sellSection
                 buyLessSection
+                insightsSection
                 displaySection
                 Text("Buy It For Life · version \(Self.version)")
                     .font(.footnote)
@@ -555,6 +556,63 @@ struct SettingsView: View {
         .padding(.leading, 16)
         .padding(.trailing, 8)
         .frame(minHeight: 64)
+    }
+
+    // MARK: Insights
+
+    private var insightsSection: some View {
+        @Bindable var settings = settings
+        return VStack(alignment: .leading, spacing: 8) {
+            SectionLabel("Insights")
+            VStack(spacing: 0) {
+                ToggleRow(label: "Daily insight", detail: "One new insight a day, top of Insights",
+                          isOn: $settings.insightsEnabled)
+                RowDivider()
+                ToggleRow(label: "Also on Today", detail: "Only when it’s about the day, like the weather",
+                          isOn: $settings.insightsOnToday)
+                    .disabled(!settings.insightsEnabled)
+            }
+            .card(padding: nil)
+
+            SectionLabel("Topics")
+                .padding(.top, 8)
+            VStack(spacing: 0) {
+                ForEach(InsightCategory.switchable, id: \.self) { category in
+                    ToggleRow(label: category.title, detail: category.summary, isOn: topicBinding(category))
+                    RowDivider()
+                }
+                HStack {
+                    Text(InsightCategory.buyLess.title)
+                        .font(.body)
+                        .foregroundStyle(.textPrimary)
+                    Spacer()
+                    Text(settings.buyLessEnabled ? "On with Buy-less goals" : "Off with Buy-less goals")
+                        .font(.rowDetail)
+                        .foregroundStyle(.textSecondary)
+                }
+                .padding(.horizontal, 16)
+                .frame(minHeight: 52)
+                .accessibilityElement(children: .combine)
+            }
+            .card(padding: nil)
+            .opacity(settings.insightsEnabled ? 1 : 0.4)
+            .disabled(!settings.insightsEnabled)
+
+            Text("Insights need some history, so new kinds appear as you log more days. Feel-good mode leaves out ones about money.")
+                .font(.footnote)
+                .foregroundStyle(.textSecondary)
+                .padding(.horizontal, 4)
+        }
+    }
+
+    private func topicBinding(_ category: InsightCategory) -> Binding<Bool> {
+        Binding(
+            get: { !settings.disabledInsightCategories.contains(category) },
+            set: { on in
+                if on { settings.disabledInsightCategories.remove(category) }
+                else { settings.disabledInsightCategories.insert(category) }
+            }
+        )
     }
 
     // MARK: Display
