@@ -180,6 +180,7 @@ struct WeatherPromptCard: View {
 /// One item on Today: tap to mark it worn.
 struct OutfitRow: View {
     let item: Item
+    /// What follows the brand and size, e.g. "€1.17 / wear" or "Best above 18°C".
     var detail: String
     var isWorn: Bool
     var dimmed: Bool
@@ -193,7 +194,7 @@ struct OutfitRow: View {
                     .opacity(dimmed ? 0.7 : 1)
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
-                        Text(item.name)
+                        Text(item.listName)
                             .font(.rowTitle)
                             .foregroundStyle(dimmed ? .textSecondary : .textPrimary)
                             .lineLimit(1)
@@ -210,11 +211,20 @@ struct OutfitRow: View {
                                 .accessibilityLabel("Favorite")
                         }
                     }
-                    Text(detail)
-                        .font(.rowDetail)
-                        .foregroundStyle(.textSecondary)
-                        .monospacedDigit()
-                        .lineLimit(1)
+                    // The brand and size give way first, so the price or weather reason stays whole.
+                    HStack(spacing: 0) {
+                        if let tagline = item.tagline {
+                            Text(tagline + " · ")
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        }
+                        Text(detail)
+                            .lineLimit(1)
+                            .layoutPriority(1)
+                    }
+                    .font(.rowDetail)
+                    .foregroundStyle(.textSecondary)
+                    .monospacedDigit()
                 }
                 Spacer(minLength: 0)
                 ZStack {
@@ -235,9 +245,20 @@ struct OutfitRow: View {
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityText)
         .accessibilityAddTraits(isWorn ? [.isButton, .isSelected] : .isButton)
         .accessibilityHint(isWorn ? "Marked as worn. Tap to unmark." : "Tap to mark as worn.")
+    }
+
+    /// "Iron Ranger 8111, favorite, Red Wing, size 9.5 D, €1.17 / wear".
+    private var accessibilityText: String {
+        var parts = [item.listName]
+        if item.isMultiPiece { parts.append("\(item.piecesInUse) pieces") }
+        if item.isFavorite { parts.append("favorite") }
+        if let spoken = item.spokenTagline { parts.append(spoken) }
+        parts.append(detail)
+        return parts.joined(separator: ", ")
     }
 }
 

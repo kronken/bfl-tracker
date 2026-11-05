@@ -384,7 +384,7 @@ struct TodayView: View {
             VStack(spacing: 0) {
                 ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                     if index > 0 { RowDivider() }
-                    OutfitRow(item: item, detail: statsLine(outfit.stats[item.id] ?? item.stats),
+                    OutfitRow(item: item, detail: statsLine(outfit.stats[item.id] ?? item.stats, short: item.tagline != nil),
                               isWorn: outfit.isWorn(item), dimmed: false) {
                         toggle(item)
                     }
@@ -394,10 +394,12 @@ struct TodayView: View {
         }
     }
 
-    private func statsLine(_ stats: ItemStats) -> String {
+    /// "€1.17 / wear · 412 wears"; just the cost per wear when the row also
+    /// shows brand and size (`short`), so it fits on one line.
+    private func statsLine(_ stats: ItemStats, short: Bool) -> String {
         let wears = stats.wearCount == 1 ? "1 wear" : "\(stats.wearCount) wears"
         guard let cpw = stats.costPerWearCents else { return wears }
-        return "\(Money.format(fractionalCents: cpw)) / wear · \(wears)"
+        return short ? "\(Money.format(fractionalCents: cpw)) / wear" : "\(Money.format(fractionalCents: cpw)) / wear · \(wears)"
     }
 
     // MARK: Saving

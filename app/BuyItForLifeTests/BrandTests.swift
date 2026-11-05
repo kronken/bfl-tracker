@@ -130,3 +130,28 @@ struct BrandModelTests {
         #expect(watch.originEntry == OriginEntry(brandName: "Hamilton", brandCountry: "CH", madeIn: nil, valueCents: 59_500))
     }
 }
+
+struct ItemTextTests {
+    @Test func taglineJoinsWhatIsSet() {
+        #expect(ItemText.tagline(brand: "Sunspel", size: "M") == "Sunspel · M")
+        #expect(ItemText.tagline(brand: "Hamilton", size: nil) == "Hamilton")
+        #expect(ItemText.tagline(brand: nil, size: "W32 L34") == "W32 L34")
+        #expect(ItemText.tagline(brand: nil, size: nil) == nil)
+        #expect(ItemText.tagline(brand: " ", size: "") == nil)
+    }
+
+    @Test func spokenTaglineNamesTheSize() {
+        #expect(ItemText.spokenTagline(brand: "Red Wing", size: "9.5 D") == "Red Wing, size 9.5 D")
+        #expect(ItemText.spokenTagline(brand: nil, size: nil) == nil)
+    }
+
+    @Test func listNameDropsALeadingBrand() {
+        #expect(ItemText.listName("Red Wing Iron Ranger 8111", brand: "Red Wing") == "Iron Ranger 8111")
+        #expect(ItemText.listName("levi’s 501 shrink-to-fit", brand: "Levi’s") == "501 shrink-to-fit")
+        #expect(ItemText.listName("sunspel linen shirt", brand: "Sunspel") == "Linen shirt")
+        // Not a prefix followed by a space, or nothing left: unchanged.
+        #expect(ItemText.listName("Leeds scarf", brand: "Lee") == "Leeds scarf")
+        #expect(ItemText.listName("Hamilton", brand: "Hamilton") == "Hamilton")
+        #expect(ItemText.listName("Iron Ranger", brand: nil) == "Iron Ranger")
+    }
+}

@@ -207,3 +207,40 @@ extension Item {
                     valueCents: stats.totalCostCents)
     }
 }
+
+// MARK: - Names in lists
+
+/// How an item is named in lists and cards, so similar items can be told
+/// apart: "Iron Ranger 8111" over "Red Wing · 9.5 D".
+nonisolated enum ItemText {
+    /// Brand and size, whichever are set: "Sunspel · M", "Hamilton", "W32 L34".
+    static func tagline(brand: String?, size: String?) -> String? {
+        let parts = [brand, size].compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    /// The tagline for VoiceOver: "Red Wing, size 9.5 D".
+    static func spokenTagline(brand: String?, size: String?) -> String? {
+        let parts = [brand, size.map { "size \($0)" }].compactMap { $0 }.filter { !$0.isEmpty }
+        return parts.isEmpty ? nil : parts.joined(separator: ", ")
+    }
+
+    /// The name without a leading brand name, since the tagline shows it:
+    /// "Red Wing Iron Ranger 8111" → "Iron Ranger 8111". Unchanged if it
+    /// doesn't start with the brand or nothing would be left.
+    static func listName(_ name: String, brand: String?) -> String {
+        guard let brand = brand?.trimmingCharacters(in: .whitespaces), !brand.isEmpty,
+              let range = name.range(of: brand + " ", options: [.anchored, .caseInsensitive, .diacriticInsensitive])
+        else { return name }
+        let rest = name[range.upperBound...].trimmingCharacters(in: .whitespaces)
+        guard let first = rest.first else { return name }
+        return first.uppercased() + rest.dropFirst()
+    }
+}
+
+extension Item {
+    var tagline: String? { ItemText.tagline(brand: brand?.name, size: size) }
+    var spokenTagline: String? { ItemText.spokenTagline(brand: brand?.name, size: size) }
+    /// The name for lists and cards; the item screen shows `name` in full.
+    var listName: String { ItemText.listName(name, brand: brand?.name) }
+}

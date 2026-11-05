@@ -341,10 +341,19 @@ struct WardrobeCard: View {
                 }
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.name)
+                Text(item.listName)
                     .font(.rowDetail.weight(.semibold))
                     .foregroundStyle(.textPrimary)
                     .lineLimit(2, reservesSpace: true)
+                if let tagline = item.tagline {
+                    Text(tagline)
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(.textPrimary.opacity(0.8))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .padding(.top, 2)
+                        .accessibilityLabel(item.spokenTagline ?? tagline)
+                }
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text(stats.costPerWearCents.map { Money.format(fractionalCents: $0) } ?? "–")
                         .font(.number(.body))
@@ -453,7 +462,7 @@ struct SellSuggestionRow: View {
             ItemImageView(content: item.thumbnailContent, cornerRadius: Radius.tile, iconSize: 24)
                 .frame(width: 56, height: 56)
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.name)
+                Text(item.listName)
                     .font(.rowTitle)
                     .foregroundStyle(.textPrimary)
                     .lineLimit(1)
@@ -466,7 +475,7 @@ struct SellSuggestionRow: View {
                     .font(.footnote)
                     .foregroundStyle(.textSecondary)
                     .monospacedDigit()
-                    .lineLimit(1)
+                    .lineLimit(2)
             }
             Spacer(minLength: 0)
         }
@@ -477,7 +486,8 @@ struct SellSuggestionRow: View {
     }
 
     private func meta(_ stats: ItemStats) -> String {
-        var parts = [stats.wearCount == 1 ? "1 wear" : "\(stats.wearCount) wears"]
+        var parts = item.tagline.map { [$0] } ?? []
+        parts.append(stats.wearCount == 1 ? "1 wear" : "\(stats.wearCount) wears")
         if let cpw = stats.costPerWearCents { parts.append("\(Money.format(fractionalCents: cpw)) / wear") }
         parts.append("paid \(Money.format(cents: stats.totalCostCents))")
         return parts.joined(separator: " · ")
