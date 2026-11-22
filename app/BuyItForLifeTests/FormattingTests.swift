@@ -208,3 +208,27 @@ struct FeelGoodCopyTests {
         #expect(WardrobeCopy.ownedLine(items: 1, wears: 1) == "1 item, worn once")
     }
 }
+
+struct SpendAxisTests {
+    @Test func roundStepsUpToThePeak() {
+        #expect(SpendPerYearCard.axisTicks(peakCents: 60_000) == [0, 20_000, 40_000, 60_000])
+        #expect(SpendPerYearCard.axisTicks(peakCents: 61_000) == [0, 50_000, 100_000])
+        #expect(SpendPerYearCard.axisTicks(peakCents: 34_900) == [0, 20_000, 40_000])
+        #expect(SpendPerYearCard.axisTicks(peakCents: 130_400) == [0, 50_000, 100_000, 150_000])
+    }
+
+    @Test func smallAndEmptyMonths() {
+        #expect(SpendPerYearCard.axisTicks(peakCents: 0).isEmpty)
+        #expect(SpendPerYearCard.axisTicks(peakCents: 150) == [0, 100, 200])
+        #expect(SpendPerYearCard.axisTicks(peakCents: 50) == [0, 100])
+    }
+}
+
+struct WearAxisTests {
+    @Test func wholeWearSteps() {
+        #expect(AxisBarChart.ticks(peak: 3, minStep: 1) == [0, 1, 2, 3])
+        #expect(AxisBarChart.ticks(peak: 1, minStep: 1) == [0, 1])
+        #expect(AxisBarChart.ticks(peak: 7, minStep: 1) == [0, 5, 10])
+        #expect(AxisBarChart.ticks(peak: 31, minStep: 1) == [0, 20, 40])
+    }
+}

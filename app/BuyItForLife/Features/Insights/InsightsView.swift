@@ -381,34 +381,28 @@ struct SpendPerYearCard: View {
             }
             SegmentedControl(options: [(Mode.monthly, "Monthly"), (Mode.yearly, "Yearly"), (Mode.total, "Total")],
                              selection: $mode)
-            HStack(alignment: .bottom, spacing: mode == .monthly ? 4 : 8) {
-                ForEach(Array(bars.enumerated()), id: \.offset) { _, bar in
-                    VStack(spacing: 4) {
-                        // Twelve bars are too narrow for amounts; the caption sums them up.
-                        if mode != .monthly {
+            if mode == .monthly {
+                monthlyChart(bars, ticks: Self.axisTicks(peakCents: peak))
+            } else {
+                HStack(alignment: .bottom, spacing: 8) {
+                    ForEach(Array(bars.enumerated()), id: \.offset) { _, bar in
+                        VStack(spacing: 4) {
                             Text(Self.compact(bar.cents))
                                 .font(.number(.caption))
                                 .foregroundStyle(.textSecondary)
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.7)
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(bar.cents > 0 ? AnyShapeStyle(.dataBlue) : AnyShapeStyle(.surfaceRaised))
+                                .frame(height: peak > 0 ? max(4, barAreaHeight * CGFloat(bar.cents / peak)) : 4)
                         }
-                        RoundedRectangle(cornerRadius: mode == .monthly ? 4 : 6)
-                            .fill(bar.cents > 0 ? AnyShapeStyle(.dataBlue) : AnyShapeStyle(.surfaceRaised))
-                            .frame(height: peak > 0 ? max(4, barAreaHeight * CGFloat(bar.cents / peak)) : 4)
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-            }
-            .frame(height: barAreaHeight + 24, alignment: .bottom)
-            HStack(spacing: mode == .monthly ? 4 : 8) {
-                ForEach(Array(bars.enumerated()), id: \.offset) { _, bar in
-                    Text(bar.label)
                         .frame(maxWidth: .infinity)
+                    }
                 }
+                .frame(height: barAreaHeight + 24, alignment: .bottom)
+                barLabels(bars, spacing: 8)
+                    .padding(.top, -8)
             }
-            .font(.label)
-            .foregroundStyle(.textSecondary)
-            .padding(.top, -8)
             if mode == .monthly {
                 Text(monthlyCaption)
                     .font(.rowDetail)
@@ -420,6 +414,33 @@ struct SpendPerYearCard: View {
         .accessibilityLabel(mode == .monthly ? "Spent per month, last 12 months" : "Spent per year")
         .accessibilityValue(bars.map { "\($0.spokenLabel): \(Money.format(cents: Int($0.cents.rounded())))" }
             .joined(separator: ", "))
+    }
+
+    // MARK: Monthly
+
+    /// Twelve bars are too narrow for amounts on top, so gridlines at round
+    /// amounts give a rough reading instead.
+    private func monthlyChart(_ bars: [Bar], ticks: [Double]) -> some View {
+        // Same total height as the yearly chart, so switching doesn't jump.
+        AxisBarChart(values: bars.map(\.cents), labels: bars.map(\.label), ticks: ticks,
+                     tickLabel: { Self.compact($0) }, plotHeight: barAreaHeight + 16, spacing: 4)
+    }
+
+    private func barLabels(_ bars: [Bar], spacing: CGFloat) -> some View {
+        HStack(spacing: spacing) {
+            ForEach(Array(bars.enumerated()), id: \.offset) { _, bar in
+                Text(bar.label)
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .font(.label)
+        .foregroundStyle(.textSecondary)
+    }
+
+    /// Gridline amounts for the monthly chart: steps of at least one whole
+    /// currency unit.
+    static func axisTicks(peakCents: Double) -> [Double] {
+        AxisBarChart.ticks(peak: peakCents, minStep: 100)
     }
 
     private struct Bar {

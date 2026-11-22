@@ -657,7 +657,8 @@ struct StatTile: View {
     }
 }
 
-/// Bars for logged wears in each of the last 12 months.
+/// Bars for logged wears in each of the last 12 months, with gridlines at
+/// round counts.
 struct WearsPerMonthCard: View {
     var months: [MonthCount]
 
@@ -675,23 +676,11 @@ struct WearsPerMonthCard: View {
                     .font(.rowDetail)
                     .foregroundStyle(.textSecondary)
             }
-            HStack(alignment: .bottom, spacing: 6) {
-                ForEach(months, id: \.monthStart) { month in
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(month.count > 0 ? AnyShapeStyle(.dataBlue) : AnyShapeStyle(.surfaceRaised))
-                        .frame(height: peak > 0 ? max(3, barAreaHeight * CGFloat(month.count) / CGFloat(peak)) : 3)
-                        .frame(maxWidth: .infinity)
-                }
-            }
-            .frame(height: barAreaHeight, alignment: .bottom)
-            HStack(spacing: 6) {
-                ForEach(months, id: \.monthStart) { month in
-                    Text(month.monthStart.formatted(.dateTime.month(.narrow)))
-                        .font(.label)
-                        .foregroundStyle(.textSecondary)
-                        .frame(maxWidth: .infinity)
-                }
-            }
+            AxisBarChart(values: months.map { Double($0.count) },
+                         labels: months.map { $0.monthStart.formatted(.dateTime.month(.narrow)) },
+                         ticks: AxisBarChart.ticks(peak: Double(peak), minStep: 1),
+                         tickLabel: { Int($0).formatted() },
+                         plotHeight: barAreaHeight, spacing: 6, axisWidth: 28)
             Text(caption(peak: peak))
                 .font(.rowDetail)
                 .foregroundStyle(.textSecondary)
