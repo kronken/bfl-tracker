@@ -37,6 +37,7 @@ struct InsightsView: View {
                     if owned.contains(where: { $0.brand != nil || $0.store != nil }) {
                         OriginCard(entries: owned.map(\.originEntry), hidesTotals: settings.hidesTotals)
                     }
+                    WearShareCard(items: items)
                     // Feel-good mode leaves the spending chart out entirely.
                     if !settings.hidesTotals {
                         SpendPerYearCard(points: wardrobe.spendPerYear(), months: wardrobe.spendPerMonth(), mode: $spendMode)

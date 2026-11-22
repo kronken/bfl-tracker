@@ -31,6 +31,7 @@ enum DemoData {
         // Categories from the items' starter categories, as for an upgrading user.
         ClothingCategory.ensureSetup(in: container.mainContext, defaults: UserDefaults(suiteName: "demo-\(UUID())")!)
         if UserDefaults.standard.bool(forKey: "demoCare") { insertTypesAndCare(into: container.mainContext) }
+        if UserDefaults.standard.bool(forKey: "demoWearMix") { mixWears(in: container.mainContext) }
         if isLarge { insertLargeWardrobe(into: container.mainContext) }
         try? container.mainContext.save()
         return container
@@ -250,6 +251,26 @@ enum DemoData {
         // Every sixth item is left without a store.
         for (index, item) in items.enumerated() where !item.isGift && index % 6 != 5 {
             item.store = stores[index % stores.count]
+        }
+    }
+
+    /// `-demoWearMix YES`: on some logged days other shoes and trousers are
+    /// worn instead of the boots and jeans, so "What you wore" has a split.
+    private static func mixWears(in context: ModelContext) {
+        let items = (try? context.fetch(FetchDescriptor<Item>())) ?? []
+        let logs = (try? context.fetch(FetchDescriptor<DayLog>())) ?? []
+        for starter in [StarterCategory.footwear, .bottoms] {
+            let group = items.filter { $0.categoryRaw == starter.rawValue && !$0.isSold }.sorted { $0.name < $1.name }
+            guard group.count > 1 else { continue }
+            for log in logs {
+                guard var worn = log.items, let index = worn.firstIndex(where: { $0.categoryRaw == starter.rawValue }),
+                      let day = Int(log.dayKey.suffix(2)), let month = Int(log.dayKey.dropFirst(5).prefix(2))
+                else { continue }
+                // A different mix each month.
+                let pick = (day + month) % (month % 3 + 2)
+                if pick > 0 { worn[index] = group[(pick + month) % group.count] }
+                log.items = worn
+            }
         }
     }
 
