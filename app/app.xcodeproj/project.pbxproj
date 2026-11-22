@@ -343,7 +343,7 @@
 				INFOPLIST_FILE = BuyItForLife/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Buy It For Life";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
-				INFOPLIST_KEY_NSCameraUsageDescription = "Take photos of your clothes.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Used to photograph your clothes when you add or edit an item, for example a jacket you just bought, so you can recognise it in your wardrobe and when logging what you wear. Photos are stored only on your devices and in your own iCloud.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Only used to fetch the weather forecast where you are, so Today can suggest the right clothes.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -389,7 +389,7 @@
 				INFOPLIST_FILE = BuyItForLife/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Buy It For Life";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
-				INFOPLIST_KEY_NSCameraUsageDescription = "Take photos of your clothes.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Used to photograph your clothes when you add or edit an item, for example a jacket you just bought, so you can recognise it in your wardrobe and when logging what you wear. Photos are stored only on your devices and in your own iCloud.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Only used to fetch the weather forecast where you are, so Today can suggest the right clothes.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
