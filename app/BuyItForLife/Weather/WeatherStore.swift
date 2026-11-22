@@ -141,7 +141,8 @@ final class WeatherStore {
         return nearest.name
     }
 
-    private func loadAttribution() async {
+    /// The Apple Weather mark and legal link, loaded once.
+    func loadAttribution() async {
         guard attribution == nil, let value = try? await service.attribution else { return }
         attribution = Attribution(markURL: value.combinedMarkDarkURL, legalURL: value.legalPageURL)
     }

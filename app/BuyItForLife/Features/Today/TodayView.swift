@@ -147,7 +147,7 @@ struct TodayView: View {
     @ViewBuilder
     private var weatherSection: some View {
         if let dayWeather {
-            WeatherCard(snapshot: dayWeather, isToday: isToday, attribution: weather.attribution)
+            WeatherCard(snapshot: dayWeather, isToday: isToday)
         } else if isToday {
             switch weather.today {
             case .needsLocation:

@@ -69,6 +69,13 @@ struct InsightsView: View {
             } else {
                 InsightCard(insight: insight)
             }
+            // Weather insights quote WeatherKit data; outside the card so the
+            // link works even when the card opens an item.
+            if insight.category == .weather {
+                WeatherAttributionView()
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, -8)
+            }
         }
     }
 

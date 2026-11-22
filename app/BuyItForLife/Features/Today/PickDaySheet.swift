@@ -192,6 +192,10 @@ struct PickDaySheet: View {
                         .monospacedDigit()
                 }
             }
+            if dayLogs.contains(where: { $0.weather != nil }) {
+                WeatherAttributionView()
+                    .padding(.vertical, -8)
+            }
             if wornItems.isEmpty {
                 Text("Nothing logged.")
                     .font(.rowDetail)

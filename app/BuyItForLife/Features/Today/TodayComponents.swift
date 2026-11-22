@@ -56,40 +56,42 @@ struct WeekStrip: View {
 struct WeatherCard: View {
     var snapshot: WeatherSnapshot
     var isToday: Bool
-    var attribution: WeatherStore.Attribution?
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: snapshot.symbolName)
-                .symbolRenderingMode(.multicolor)
-                .font(.system(size: 20))
-                .foregroundStyle(.textPrimary)
-                .frame(width: 44, height: 44)
-                .background(.surfaceRaised, in: .circle)
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(Temperature.format(celsius: snapshot.temperatureC))
-                        .font(.number(.title2))
-                        .foregroundStyle(.textPrimary)
-                    Text(snapshot.conditionText)
-                        .font(.rowTitle)
-                        .foregroundStyle(.textPrimary)
-                        .lineLimit(1)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 12) {
+                Image(systemName: snapshot.symbolName)
+                    .symbolRenderingMode(.multicolor)
+                    .font(.system(size: 20))
+                    .foregroundStyle(.textPrimary)
+                    .frame(width: 44, height: 44)
+                    .background(.surfaceRaised, in: .circle)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(Temperature.format(celsius: snapshot.temperatureC))
+                            .font(.number(.title2))
+                            .foregroundStyle(.textPrimary)
+                        Text(snapshot.conditionText)
+                            .font(.rowTitle)
+                            .foregroundStyle(.textPrimary)
+                            .lineLimit(1)
+                    }
+                    if !detailLine.isEmpty {
+                        Text(detailLine)
+                            .font(.rowDetail)
+                            .foregroundStyle(.textSecondary)
+                            .lineLimit(1)
+                    }
                 }
-                if !detailLine.isEmpty {
-                    Text(detailLine)
-                        .font(.rowDetail)
-                        .foregroundStyle(.textSecondary)
-                        .lineLimit(1)
-                }
+                Spacer(minLength: 0)
             }
-            Spacer(minLength: 0)
-            attributionMark
+            .accessibilityElement(children: .combine)
+            WeatherAttributionView()
+                .padding(.bottom, -8)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
         .card(padding: nil)
-        .accessibilityElement(children: .combine)
     }
 
     private var detailLine: String {
@@ -101,31 +103,6 @@ struct WeatherCard: View {
         }
         if let place = snapshot.placeName { parts.append(place) }
         return parts.joined(separator: " · ")
-    }
-
-    /// Apple requires the Apple Weather mark and a link to its data sources.
-    @ViewBuilder
-    private var attributionMark: some View {
-        if let attribution {
-            Link(destination: attribution.legalURL) {
-                AsyncImage(url: attribution.markURL) { image in
-                    image.resizable().scaledToFit()
-                } placeholder: {
-                    fallbackMark
-                }
-                .frame(width: 56, height: 14)
-            }
-            .accessibilityLabel("Apple Weather data sources")
-        } else {
-            fallbackMark
-        }
-    }
-
-    private var fallbackMark: some View {
-        Text("Apple\nWeather")
-            .font(.label)
-            .foregroundStyle(.textSecondary)
-            .multilineTextAlignment(.trailing)
     }
 
     /// Shown while the forecast loads.
