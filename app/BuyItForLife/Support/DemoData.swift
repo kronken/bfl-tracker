@@ -27,6 +27,7 @@ enum DemoData {
         insertSamples(into: container.mainContext)
         if UserDefaults.standard.bool(forKey: "demoOccasions") { insertOccasions(into: container.mainContext) }
         if UserDefaults.standard.bool(forKey: "demoBrands") { insertBrands(into: container.mainContext) }
+        if UserDefaults.standard.bool(forKey: "demoStores") { insertStores(into: container.mainContext) }
         // Categories from the items' starter categories, as for an upgrading user.
         ClothingCategory.ensureSetup(in: container.mainContext, defaults: UserDefaults(suiteName: "demo-\(UUID())")!)
         if UserDefaults.standard.bool(forKey: "demoCare") { insertTypesAndCare(into: container.mainContext) }
@@ -237,6 +238,18 @@ enum DemoData {
             item.brand = brands[assignment.brand]
             item.madeInCountryCode = assignment.madeIn
             item.size = assignment.size
+        }
+    }
+
+    /// `-demoStores YES`: made-up stores; most items get one, gifts never.
+    private static func insertStores(into context: ModelContext) {
+        let stores = ["Northside Supply", "Harbor & Pine", "Kallio Vintage", "Linden Department Store", "Second Loop"]
+            .map { Store(name: $0) }
+        stores.forEach(context.insert)
+        let items = ((try? context.fetch(FetchDescriptor<Item>())) ?? []).sorted { $0.name < $1.name }
+        // Every sixth item is left without a store.
+        for (index, item) in items.enumerated() where !item.isGift && index % 6 != 5 {
+            item.store = stores[index % stores.count]
         }
     }
 

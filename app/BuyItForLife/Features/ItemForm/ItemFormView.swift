@@ -18,6 +18,7 @@ struct ItemFormView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var occasions: [Occasion]
     @Query private var brands: [Brand]
+    @Query private var stores: [Store]
     @Query private var allItems: [Item]
     @Query private var categoryRecords: [ClothingCategory]
     @Query private var careActions: [CareAction]
@@ -28,6 +29,7 @@ struct ItemFormView: View {
     @State private var showNewOccasion = false
     @State private var showBrandPicker = false
     @State private var showMadeIn = false
+    @State private var showStorePicker = false
     @State private var showNewCategory = false
     @State private var showNewType = false
     @State private var showNewCareAction = false
@@ -120,6 +122,9 @@ struct ItemFormView: View {
         .sheet(isPresented: $showBrandPicker) {
             BrandPicker(selectedID: draft.brandID, item: draftImageContent) { draft.brandID = $0?.id }
         }
+        .sheet(isPresented: $showStorePicker) {
+            StorePicker(selectedID: draft.storeID, item: draftImageContent) { draft.storeID = $0?.id }
+        }
         .sheet(isPresented: $showMadeIn) {
             CountryPicker(title: "Made in", selection: draft.madeInCountryCode,
                           suggested: Countries.suggestions(used: allItems.map(\.madeInCountryCode)
@@ -138,6 +143,10 @@ struct ItemFormView: View {
 
     private var selectedBrand: Brand? {
         draft.brandID.flatMap { id in brands.first { $0.id == id } }
+    }
+
+    private var selectedStore: Store? {
+        draft.storeID.flatMap { id in stores.first { $0.id == id } }
     }
 
     /// A form row that opens a picker: label, value, chevron.
@@ -277,6 +286,15 @@ struct ItemFormView: View {
                     FormRow(label: draft.isGift ? "Received" : "Bought") {
                         DatePicker("Bought", selection: $draft.purchaseDate, in: ...Date.now, displayedComponents: .date)
                             .labelsHidden()
+                    }
+                }
+                // Gifts weren't bought anywhere.
+                if !draft.isGift {
+                    RowDivider()
+                    pickerRow("Store", action: { showStorePicker = true }) {
+                        Text(selectedStore?.name ?? "Optional")
+                            .foregroundStyle(selectedStore == nil ? .textTertiary : .textPrimary)
+                            .lineLimit(1)
                     }
                 }
                 RowDivider()
@@ -539,6 +557,7 @@ struct ItemFormView: View {
         }
         await draft.apply(to: item)
         item.brand = selectedBrand
+        item.store = draft.isGift ? nil : selectedStore
         item.setCategory(selectedCategory)
         item.itemType = draft.typeID.flatMap { id in selectedCategory?.types?.first { $0.id == id } }
         item.enabledCareActions = careActions.filter { draft.careActionIDs.contains($0.id) }

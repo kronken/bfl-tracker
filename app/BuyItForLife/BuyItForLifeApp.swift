@@ -4,7 +4,7 @@ import SwiftUI
 /// Every SwiftData model, for the app, demo data and tests.
 enum AppSchema {
     static let models: [any PersistentModel.Type] = [
-        Item.self, DayLog.self, Repair.self, PieceEvent.self, Occasion.self, Brand.self,
+        Item.self, DayLog.self, Repair.self, PieceEvent.self, Occasion.self, Brand.self, Store.self,
         ClothingCategory.self, ItemType.self, CareAction.self, CareLogEntry.self,
     ]
 }

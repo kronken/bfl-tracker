@@ -1,8 +1,8 @@
 import Charts
 import SwiftUI
 
-/// "Where it comes from": owned items by brand, brand country or country of
-/// manufacture, as a donut with a legend.
+/// "Where it comes from": owned items by brand, brand country, country of
+/// manufacture or store, as a donut with a legend.
 struct OriginCard: View {
     var entries: [OriginEntry]
     /// Feel-good mode: always count items, never show money.
@@ -11,10 +11,11 @@ struct OriginCard: View {
     @AppStorage("originDimension") private var dimension: OriginDimension = .brandCountry
     @AppStorage("originMetric") private var storedMetric: OriginMetric = .value
 
-    /// Slice colours in order; "Other" and "Not set" are grey.
+    /// Slice colours in order; "Other" and "Not set" are grey, "Gifts" a lighter grey.
     static let palette: [Color] = [Color(hex: 0xD6AD66), Color(hex: 0x7D9CF0), Color(hex: 0x5FBFA8),
                                    Color(hex: 0xC38FDC), Color(hex: 0xE07A5F)]
     static let grey = Color(hex: 0x6E6E73)
+    static let giftGrey = Color(hex: 0xA1A1A6)
 
     private var metric: OriginMetric { hidesTotals ? .items : storedMetric }
 
@@ -121,6 +122,7 @@ struct OriginCard: View {
     private func footnote(_ breakdown: OriginBreakdown) -> String {
         let items = breakdown.itemCount == 1 ? "1 item" : "\(breakdown.itemCount) items"
         var text = "\(dimension.countLabel(breakdown.groupCount).capitalizedFirst) across \(items)."
+        if dimension == .store && breakdown.hasGifts { text += " Gifts are shown on their own." }
         if metric == .value { text += " Value includes repairs; gifts count at their value." }
         return text
     }
@@ -133,6 +135,8 @@ struct OriginCard: View {
             if slice.kind == .named, next < palette.count {
                 colors[slice.id] = palette[next]
                 next += 1
+            } else if slice.kind == .gifts {
+                colors[slice.id] = giftGrey
             } else {
                 colors[slice.id] = grey
             }

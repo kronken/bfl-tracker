@@ -8,6 +8,7 @@ struct SettingsView: View {
     @Query private var items: [Item]
     @Query private var occasions: [Occasion]
     @Query private var brands: [Brand]
+    @Query private var stores: [Store]
     @Query private var categories: [ClothingCategory]
     @Query private var itemTypes: [ItemType]
     @Query private var careActions: [CareAction]
@@ -17,6 +18,7 @@ struct SettingsView: View {
     @State private var showDebug = false
     @State private var showOccasions = false
     @State private var showBrands = false
+    @State private var showStores = false
     @State private var showCategories = false
     @State private var showCareActions = false
 
@@ -57,6 +59,7 @@ struct SettingsView: View {
         .sheet(isPresented: $showDebug) { DebugView() }
         .navigationDestination(isPresented: $showOccasions) { OccasionsView() }
         .navigationDestination(isPresented: $showBrands) { BrandsView() }
+        .navigationDestination(isPresented: $showStores) { StoresView() }
         .navigationDestination(isPresented: $showCategories) { CategoriesView() }
         .navigationDestination(isPresented: $showCareActions) { CareActionsView() }
         #if DEBUG
@@ -65,6 +68,7 @@ struct SettingsView: View {
             if UserDefaults.standard.bool(forKey: "openDebugScreen") { showDebug = true }
             if UserDefaults.standard.string(forKey: "openOccasions") != nil { showOccasions = true }
             if UserDefaults.standard.string(forKey: "openBrands") != nil { showBrands = true }
+            if UserDefaults.standard.string(forKey: "openStores") != nil { showStores = true }
             if UserDefaults.standard.bool(forKey: "openCategories") { showCategories = true }
             if UserDefaults.standard.bool(forKey: "openCareActions") { showCareActions = true }
             if UserDefaults.standard.bool(forKey: "replayOnboarding") { AppRouter.shared.replayOnboarding = true }
@@ -156,33 +160,42 @@ struct SettingsView: View {
         .card(padding: nil)
     }
 
-    // MARK: Brands
+    // MARK: Brands and stores
 
     private var brandsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            SectionLabel("Brands")
-            Button { showBrands = true } label: {
-                HStack(spacing: 12) {
-                    iconTile("tag")
-                    Text("Brands")
-                        .font(.body)
-                        .foregroundStyle(.textPrimary)
-                    Spacer(minLength: 8)
-                    Text(brands.count.formatted())
-                        .font(.body)
-                        .foregroundStyle(.textSecondary)
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.textTertiary)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .frame(minHeight: 56)
-                .contentShape(.rect)
+            SectionLabel("Brands and stores")
+            VStack(spacing: 0) {
+                countRow(icon: "tag", title: "Brands", count: brands.count) { showBrands = true }
+                RowDivider()
+                countRow(icon: "bag", title: "Stores", count: stores.count) { showStores = true }
             }
-            .buttonStyle(.plain)
             .card(padding: nil)
         }
+    }
+
+    /// Icon, title, count, chevron, for rows that share a card.
+    private func countRow(icon: String, title: String, count: Int, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                iconTile(icon)
+                Text(title)
+                    .font(.body)
+                    .foregroundStyle(.textPrimary)
+                Spacer(minLength: 8)
+                Text(count.formatted())
+                    .font(.body)
+                    .foregroundStyle(.textSecondary)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.textTertiary)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .frame(minHeight: 56)
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: Weather

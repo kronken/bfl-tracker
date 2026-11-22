@@ -48,6 +48,8 @@ struct DraftPhoto: Equatable {
 struct ItemDraft: Equatable {
     var name = ""
     var brandID: UUID?
+    /// Kept while "Received as a gift" is on, but saved only for non-gifts.
+    var storeID: UUID?
     var madeInCountryCode: String?
     var sizeText = ""
     var priceText = ""
@@ -93,6 +95,7 @@ struct ItemDraft: Equatable {
     init(item: Item) {
         name = item.name
         brandID = item.brand?.id
+        storeID = item.store?.id
         madeInCountryCode = item.madeInCountryCode
         sizeText = item.size ?? ""
         priceText = Money.inputText(cents: item.purchasePriceCents)

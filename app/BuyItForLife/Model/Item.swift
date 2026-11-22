@@ -25,6 +25,8 @@ final class Item {
     // Purchase
     var purchaseDate: Date = Date.now
     var purchasePriceCents: Int = 0
+    /// Where it was bought. Gifts have none.
+    var store: Store?
     /// Pre-owned, vintage or swapped.
     var boughtSecondHand: Bool = false
     /// Received as a gift: `purchasePriceCents` is then its value. Counts for

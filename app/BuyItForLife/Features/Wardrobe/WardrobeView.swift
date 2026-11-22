@@ -180,6 +180,7 @@ struct WardrobeView: View {
             || item.categoryName.range(of: query, options: options) != nil
             || item.itemType?.name.range(of: query, options: options) != nil
             || item.brand?.name.range(of: query, options: options) != nil
+            || item.store?.name.range(of: query, options: options) != nil
     }
 
     private var summary: String {

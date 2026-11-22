@@ -44,7 +44,7 @@ struct ItemDetailView: View {
 
     // MARK: Details
 
-    /// Brand, Made in and Size; only the ones that are set.
+    /// Type, Brand, Made in, Store and Size; only the ones that are set.
     private var detailsCard: some View {
         let kind: (label: String, value: Text) = item.itemType.map { type in
             ("Type", Text("\(Text(type.name).foregroundStyle(.textPrimary))\(Text(" · \(item.categoryName)").foregroundStyle(.textSecondary))"))
@@ -57,6 +57,7 @@ struct ItemDetailView: View {
                 return ("Brand", Text("\(Text(brand.name).foregroundStyle(.textPrimary))\(country)"))
             },
             item.madeInCountryCode.map { ("Made in", Text(Countries.name(for: $0)).foregroundStyle(.textPrimary)) },
+            item.store.map { ("Store", Text($0.name).foregroundStyle(.textPrimary)) },
             item.size.map { ("Size", Text($0).foregroundStyle(.textPrimary)) },
         ].compactMap { $0 }
         return VStack(spacing: 0) {

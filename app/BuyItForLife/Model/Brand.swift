@@ -88,13 +88,15 @@ nonisolated enum Countries {
 
 /// What Insights groups owned items by.
 nonisolated enum OriginDimension: String, CaseIterable, Sendable {
-    case brand, brandCountry, madeIn
+    case brand, brandCountry, madeIn, store
 
+    /// Short, so four fit in one segmented control.
     var title: String {
         switch self {
         case .brand: "Brand"
-        case .brandCountry: "Brand country"
+        case .brandCountry: "Country"
         case .madeIn: "Made in"
+        case .store: "Store"
         }
     }
 
@@ -104,6 +106,7 @@ nonisolated enum OriginDimension: String, CaseIterable, Sendable {
         case .brand: count == 1 ? "1 brand" : "\(count) brands"
         case .brandCountry: count == 1 ? "1 brand country" : "\(count) brand countries"
         case .madeIn: count == 1 ? "1 country of manufacture" : "\(count) countries of manufacture"
+        case .store: count == 1 ? "1 store" : "\(count) stores"
         }
     }
 }
@@ -119,10 +122,13 @@ nonisolated struct OriginEntry: Equatable, Sendable {
     var madeIn: String?
     /// Value plus repairs; gifts count at their value.
     var valueCents: Int
+    var storeName: String? = nil
+    /// Gifts have no store: grouped by store they get their own "Gifts" slice.
+    var isGift: Bool = false
 }
 
 nonisolated struct OriginSlice: Identifiable, Equatable, Sendable {
-    enum Kind: Equatable, Sendable { case named, notSet, other }
+    enum Kind: Equatable, Sendable { case named, notSet, other, gifts }
 
     var id: String
     var name: String
@@ -138,6 +144,8 @@ nonisolated struct OriginBreakdown: Equatable, Sendable {
     /// Distinct named groups (not "Not set"/"No brand").
     var groupCount: Int
     var itemCount: Int
+    /// Grouped by store, whether any gifts are in the "Gifts" slice or in "Other".
+    var hasGifts: Bool
 
     static let maxSlices = 5
 
@@ -146,21 +154,28 @@ nonisolated struct OriginBreakdown: Equatable, Sendable {
         var groups: [String: (name: String, amount: Double)] = [:]
         var unset = 0.0
         var hasUnset = false
+        var gifts = 0.0
+        var hasGifts = false
         for entry in entries {
             let amount = metric == .items ? 1 : Double(entry.valueCents)
             let key: String?
             let name: String?
             switch dimension {
             case .brand:
-                let trimmed = entry.brandName?.trimmingCharacters(in: .whitespacesAndNewlines)
-                key = (trimmed?.isEmpty ?? true) ? nil : trimmed!.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
-                name = trimmed
+                (key, name) = Self.nameKey(entry.brandName)
             case .brandCountry:
                 key = entry.brandName == nil ? nil : entry.brandCountry
                 name = key.map(countryName)
             case .madeIn:
                 key = entry.madeIn
                 name = key.map(countryName)
+            case .store:
+                if entry.isGift {
+                    gifts += amount
+                    hasGifts = true
+                    continue
+                }
+                (key, name) = Self.nameKey(entry.storeName)
             }
             if let key, let name {
                 groups[key, default: (name, 0)].amount += amount
@@ -172,8 +187,15 @@ nonisolated struct OriginBreakdown: Equatable, Sendable {
 
         var all = groups.map { OriginSlice(id: $0.key, name: $0.value.name, amount: $0.value.amount, kind: .named, share: 0) }
         if hasUnset {
-            all.append(OriginSlice(id: "notSet", name: dimension == .brand ? "No brand" : "Not set",
-                                   amount: unset, kind: .notSet, share: 0))
+            let name = switch dimension {
+            case .brand: "No brand"
+            case .store: "No store"
+            case .brandCountry, .madeIn: "Not set"
+            }
+            all.append(OriginSlice(id: "notSet", name: name, amount: unset, kind: .notSet, share: 0))
+        }
+        if hasGifts {
+            all.append(OriginSlice(id: "gifts", name: "Gifts", amount: gifts, kind: .gifts, share: 0))
         }
         // Biggest first; on a tie, named groups before "Not set", then by name.
         all.sort {
@@ -197,6 +219,14 @@ nonisolated struct OriginBreakdown: Equatable, Sendable {
         self.total = total
         groupCount = groups.count
         itemCount = entries.count
+        self.hasGifts = hasGifts
+    }
+
+    /// A free-text name and its grouping key (ignoring case and accents);
+    /// both nil when empty.
+    private static func nameKey(_ name: String?) -> (key: String?, name: String?) {
+        guard let trimmed = name?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else { return (nil, nil) }
+        return (trimmed.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil), trimmed)
     }
 }
 
@@ -204,7 +234,7 @@ extension Item {
     /// What the origin chart needs. Identical pieces count as one item.
     var originEntry: OriginEntry {
         OriginEntry(brandName: brand?.name, brandCountry: brand?.countryCode, madeIn: madeInCountryCode,
-                    valueCents: stats.totalCostCents)
+                    valueCents: stats.totalCostCents, storeName: store?.name, isGift: isGift)
     }
 }
 

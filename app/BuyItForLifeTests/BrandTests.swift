@@ -127,7 +127,8 @@ struct BrandModelTests {
         let service = Repair(name: "Service", date: .now, priceCents: 10_000)
         context.insert(service)
         service.item = watch
-        #expect(watch.originEntry == OriginEntry(brandName: "Hamilton", brandCountry: "CH", madeIn: nil, valueCents: 59_500))
+        #expect(watch.originEntry == OriginEntry(brandName: "Hamilton", brandCountry: "CH", madeIn: nil, valueCents: 59_500,
+                                                storeName: nil, isGift: true))
     }
 }
 
